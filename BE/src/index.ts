@@ -3,6 +3,8 @@ import { swagger } from '@elysiajs/swagger'
 import bearer from '@elysiajs/bearer'
 import openapi from '@elysiajs/openapi'
 import { auth } from './modules/auth'
+import { compiler } from './modules/compiler'
+import { testcase } from './modules/testcase'
 
 const app = new Elysia()
 	.get('/ping', 'pong')
@@ -10,6 +12,8 @@ const app = new Elysia()
 	.use(openapi())
 	.use(bearer())
 	.use(auth)
+	.use(compiler)
+	.use(testcase)
 	.listen(3000, () => {
 		console.log('🚀 Server running: http://localhost:3000')
 		console.log('📘 Swagger docs: http://localhost:3000/swagger')
