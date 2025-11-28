@@ -17,12 +17,23 @@ import type {
 	JudgeResult
 } from './model'
 import { testCaseService } from '../testcase/service'
+import { CompilerConfig } from './config'
+import {
+	validateCompileRequest,
+	validateJudgeRequest,
+	validateJudgeFromFileRequest,
+	sanitizeErrorMessage,
+	generateSecureWorkspaceId,
+	ValidationError
+} from './validation'
+import { compilerRateLimiter, RateLimitError } from './rate-limiter'
 
 type OptimizationLevel = 0 | 1 | 2 | 3 | 's'
 
 export class CompilerService {
-	private containerName = 'c_compiler_persistent'
+	private containerName = CompilerConfig.CONTAINER_NAME
 	private containerReady = false
+	private activeCompilations = new Set<string>()
 
 	/**
 	 * Build GCC compilation flags with optimization level
@@ -54,15 +65,23 @@ export class CompilerService {
 				'rm',
 				'-f',
 				this.containerName
-			]).catch(() => { })
-		} catch {
-			// Container doesn't exist
+			]).catch(error => {
+				console.warn(
+					'[CompilerService] Failed to remove old container:',
+					error.message
+				)
+			})
+		} catch (error) {
+			// Container doesn't exist - this is fine
+			console.log(
+				'[CompilerService] Container does not exist, will create new one'
+			)
 		}
 
 		// Pull image if needed
 		await this.ensureDockerImage()
 
-		// Create and start persistent container
+		// Create and start persistent container with enhanced security
 		await this.executeCommand(
 			'docker',
 			[
@@ -73,13 +92,20 @@ export class CompilerService {
 				'--network',
 				'none',
 				'--cpus',
-				'2',
+				CompilerConfig.CONTAINER_CPUS,
 				'--memory',
-				`${DEFAULT_MEMORY_LIMIT * 2}m`,
+				`${CompilerConfig.CONTAINER_MEMORY_MB}m`,
+				'--memory-swap',
+				`${CompilerConfig.CONTAINER_MEMORY_MB}m`,
 				'--pids-limit',
-				'100',
+				`${CompilerConfig.CONTAINER_PIDS_LIMIT}`,
 				'--security-opt',
 				'no-new-privileges',
+				'--cap-drop',
+				'ALL',
+				'--read-only',
+				'--tmpfs',
+				'/workspace:rw,noexec,nosuid,size=100m',
 				'-w',
 				'/workspace',
 				DOCKER_IMAGE,
@@ -100,9 +126,14 @@ export class CompilerService {
 		try {
 			await this.executeCommand('docker', ['rm', '-f', this.containerName])
 			this.containerReady = false
-			console.log('✓ Compiler container stopped')
+			console.log('[CompilerService] ✓ Compiler container stopped')
 		} catch (error) {
-			console.error('Failed to stop container:', error)
+			const errorMessage =
+				error instanceof Error ? error.message : String(error)
+			console.error(
+				'[CompilerService] Failed to stop container:',
+				sanitizeErrorMessage(errorMessage)
+			)
 		}
 	}
 	private async createTempFile(
@@ -137,9 +168,10 @@ export class CompilerService {
 				if (existsSync(file)) {
 					try {
 						await unlink(file)
-					} catch (error: any) {
+					} catch (error: unknown) {
+						const err = error as NodeJS.ErrnoException
 						// If permission denied, try with sudo
-						if (error.code === 'EPERM' || error.code === 'EACCES') {
+						if (err.code === 'EPERM' || err.code === 'EACCES') {
 							await this.executeCommand(
 								'sudo',
 								['rm', '-f', file],
@@ -152,7 +184,12 @@ export class CompilerService {
 					}
 				}
 			} catch (error) {
-				console.error(`Failed to cleanup file ${file}:`, error)
+				const errorMessage =
+					error instanceof Error ? error.message : String(error)
+				console.error(
+					`[CompilerService] Failed to cleanup file:`,
+					sanitizeErrorMessage(errorMessage)
+				)
 			}
 		}
 	}
@@ -161,7 +198,8 @@ export class CompilerService {
 		command: string,
 		args: string[],
 		input?: string,
-		timeLimit: number = DEFAULT_TIME_LIMIT
+		timeLimit: number = DEFAULT_TIME_LIMIT,
+		maxOutputSize: number = CompilerConfig.MAX_OUTPUT_SIZE
 	): Promise<{ stdout: string; stderr: string; executionTime: number }> {
 		return new Promise((resolve, reject) => {
 			const startTime = Date.now()
@@ -179,10 +217,28 @@ export class CompilerService {
 
 			process.stdout.on('data', data => {
 				stdout += data.toString()
+				if (stdout.length > maxOutputSize) {
+					killed = true
+					process.kill('SIGKILL')
+					clearTimeout(timeout)
+					reject(
+						new Error(`Output size exceeded limit (${maxOutputSize} bytes)`)
+					)
+				}
 			})
 
 			process.stderr.on('data', data => {
 				stderr += data.toString()
+				if (stderr.length > CompilerConfig.MAX_ERROR_OUTPUT_SIZE) {
+					killed = true
+					process.kill('SIGKILL')
+					clearTimeout(timeout)
+					reject(
+						new Error(
+							`Error output size exceeded limit (${CompilerConfig.MAX_ERROR_OUTPUT_SIZE} bytes)`
+						)
+					)
+				}
 			})
 
 			process.on('error', error => {
@@ -269,7 +325,12 @@ export class CompilerService {
 		optimizationLevel: OptimizationLevel = 0
 	): Promise<{ success: boolean; error?: string; compilationTime?: number }> {
 		// Reuse writeAndCompile for consistency
-		return this.writeAndCompile(code, sourceFileName, executableFileName, optimizationLevel)
+		return this.writeAndCompile(
+			code,
+			sourceFileName,
+			executableFileName,
+			optimizationLevel
+		)
 	}
 
 	private async runOnly(
@@ -302,12 +363,42 @@ export class CompilerService {
 		}
 	}
 
-	async compileC(request: CompileRequest): Promise<CompileResult> {
+	async compileC(
+		request: CompileRequest,
+		identifier: string = 'anonymous'
+	): Promise<CompileResult> {
+		// Validate request and check rate limit
+		try {
+			validateCompileRequest(request)
+			compilerRateLimiter.checkLimit(identifier)
+		} catch (error) {
+			if (error instanceof ValidationError || error instanceof RateLimitError) {
+				return {
+					success: false,
+					error: error.message
+				}
+			}
+			throw error
+		}
+
+		// Check concurrent compilation limit
+		if (
+			this.activeCompilations.size >= CompilerConfig.MAX_CONCURRENT_COMPILATIONS
+		) {
+			return {
+				success: false,
+				error: 'Server is busy. Please try again in a moment.'
+			}
+		}
+
 		const timeLimit = request.timeLimit || DEFAULT_TIME_LIMIT
 		const optimizationLevel = request.optimizationLevel ?? 0
-		const workspaceId = randomBytes(8).toString('hex')
+		const workspaceId = generateSecureWorkspaceId()
 		const sourceFileName = `code_${workspaceId}.c`
 		const executableFileName = `code_${workspaceId}`
+
+		// Track active compilation
+		this.activeCompilations.add(workspaceId)
 
 		try {
 			await this.ensureContainer()
@@ -321,19 +412,12 @@ export class CompilerService {
 			// Ultra-optimized: Write + Compile + Run in ONE docker exec call
 			// Use markers to separate compile output from program output
 			// STDIN is used for program input only
-			const script = `echo "${encodedCode}" | base64 -d > ${sourceFileName} && gcc ${sourceFileName} -o ${executableFileName} ${gccFlags} 2>&1 && echo "___COMPILE_SUCCESS___" && timeout ${timeoutSeconds}s ./${executableFileName} 2>&1`
+			const script = `echo "${encodedCode}" | base64 -d > ${sourceFileName} && gcc ${sourceFileName} -o ${executableFileName} ${gccFlags} 2>&1 && echo "${CompilerConfig.COMPILE_SUCCESS_MARKER}" && timeout ${timeoutSeconds}s ./${executableFileName} 2>&1`
 
 			const compileStart = Date.now()
 			const result = await this.executeCommand(
 				'docker',
-				[
-					'exec',
-					'-i',
-					this.containerName,
-					'sh',
-					'-c',
-					script
-				],
+				['exec', '-i', this.containerName, 'sh', '-c', script],
 				request.input || '',
 				timeLimit + 5000
 			)
@@ -354,13 +438,20 @@ export class CompilerService {
 					executableFileName
 				],
 				undefined,
-				2000
-			).catch(() => { })
+				CompilerConfig.CLEANUP_TIMEOUT
+			).catch(error => {
+				console.warn(
+					'[CompilerService] Cleanup warning:',
+					sanitizeErrorMessage(error.message)
+				)
+			})
 
 			// Check for compilation errors
-			if (!output.includes('___COMPILE_SUCCESS___')) {
+			if (!output.includes(CompilerConfig.COMPILE_SUCCESS_MARKER)) {
 				// Compilation failed - output contains compile errors
-				const compileError = output || stderr || 'Compilation failed'
+				const compileError = sanitizeErrorMessage(
+					output || stderr || 'Compilation failed'
+				)
 				const compilationTime = Date.now() - compileStart
 
 				return {
@@ -372,7 +463,7 @@ export class CompilerService {
 			}
 
 			// Extract program output (after compile marker)
-			const parts = output.split('___COMPILE_SUCCESS___')
+			const parts = output.split(CompilerConfig.COMPILE_SUCCESS_MARKER)
 			const programOutput = parts[1]?.trim() || ''
 			const compilationTime = Date.now() - compileStart
 
@@ -395,23 +486,90 @@ export class CompilerService {
 					executableFileName
 				],
 				undefined,
-				2000
-			).catch(() => { })
+				CompilerConfig.CLEANUP_TIMEOUT
+			).catch(cleanupError => {
+				console.warn(
+					'[CompilerService] Cleanup failed:',
+					sanitizeErrorMessage(cleanupError.message)
+				)
+			})
+
+			const errorMessage =
+				error instanceof Error ? error.message : 'Unknown error'
+			console.error(
+				'[CompilerService] Compilation error:',
+				sanitizeErrorMessage(errorMessage)
+			)
 
 			return {
 				success: false,
-				error: error instanceof Error ? error.message : 'Unknown error'
+				error: sanitizeErrorMessage(errorMessage)
 			}
+		} finally {
+			// Always remove from active compilations
+			this.activeCompilations.delete(workspaceId)
 		}
 	}
 
-	async judge(request: JudgeRequest): Promise<JudgeResult> {
+	async judge(
+		request: JudgeRequest,
+		identifier: string = 'anonymous'
+	): Promise<JudgeResult> {
+		// Validate request and check rate limit
+		try {
+			validateJudgeRequest(request)
+			compilerRateLimiter.checkLimit(identifier)
+		} catch (error) {
+			if (error instanceof ValidationError || error instanceof RateLimitError) {
+				const results: JudgeResult['results'] = request.testCases.map(
+					(tc, i) => ({
+						testCase: i + 1,
+						passed: false,
+						input: tc.input,
+						expectedOutput: tc.expectedOutput,
+						error: error.message
+					})
+				)
+				return {
+					passed: 0,
+					failed: request.testCases.length,
+					total: request.testCases.length,
+					results
+				}
+			}
+			throw error
+		}
+
+		// Check concurrent compilation limit
+		if (
+			this.activeCompilations.size >= CompilerConfig.MAX_CONCURRENT_COMPILATIONS
+		) {
+			const results: JudgeResult['results'] = request.testCases.map(
+				(tc, i) => ({
+					testCase: i + 1,
+					passed: false,
+					input: tc.input,
+					expectedOutput: tc.expectedOutput,
+					error: 'Server is busy. Please try again in a moment.'
+				})
+			)
+			return {
+				passed: 0,
+				failed: request.testCases.length,
+				total: request.testCases.length,
+				results
+			}
+		}
+
 		const results: JudgeResult['results'] = []
 		let passed = 0
 		let failed = 0
-		const workspaceId = randomBytes(8).toString('hex')
+		const workspaceId = generateSecureWorkspaceId()
 		const sourceFileName = `code_${workspaceId}.c`
 		const executableFileName = `code_${workspaceId}`
+
+		// Track active compilation
+		this.activeCompilations.add(workspaceId)
 
 		try {
 			await this.ensureContainer()
@@ -427,13 +585,16 @@ export class CompilerService {
 
 			if (!compileResult.success) {
 				// All tests fail
+				const sanitizedError = sanitizeErrorMessage(
+					compileResult.error || 'Unknown compilation error'
+				)
 				for (let i = 0; i < request.testCases.length; i++) {
 					results.push({
 						testCase: i + 1,
 						passed: false,
 						input: request.testCases[i].input,
 						expectedOutput: request.testCases[i].expectedOutput,
-						error: `Compilation error: ${compileResult.error}`
+						error: `Compilation error: ${sanitizedError}`
 					})
 				}
 
@@ -442,8 +603,13 @@ export class CompilerService {
 					'docker',
 					['exec', this.containerName, 'rm', '-f', sourceFileName],
 					undefined,
-					5000
-				).catch(() => { })
+					CompilerConfig.CLEANUP_TIMEOUT
+				).catch(error => {
+					console.warn(
+						'[CompilerService] Cleanup warning:',
+						sanitizeErrorMessage(error.message)
+					)
+				})
 
 				return {
 					passed: 0,
@@ -479,7 +645,7 @@ export class CompilerService {
 					testResult.actualOutput = runResult.stdout
 
 					if (runResult.stderr && !runResult.stdout) {
-						testResult.error = runResult.stderr
+						testResult.error = sanitizeErrorMessage(runResult.stderr)
 						failed++
 					} else {
 						// Compare output
@@ -495,8 +661,9 @@ export class CompilerService {
 						}
 					}
 				} catch (error) {
-					testResult.error =
+					const errorMessage =
 						error instanceof Error ? error.message : 'Execution failed'
+					testResult.error = sanitizeErrorMessage(errorMessage)
 					failed++
 				}
 
@@ -515,8 +682,13 @@ export class CompilerService {
 					executableFileName
 				],
 				undefined,
-				5000
-			).catch(() => { })
+				CompilerConfig.CLEANUP_TIMEOUT
+			).catch(error => {
+				console.warn(
+					'[CompilerService] Cleanup warning:',
+					sanitizeErrorMessage(error.message)
+				)
+			})
 		} catch (error) {
 			// Cleanup on error
 			await this.executeCommand(
@@ -530,22 +702,38 @@ export class CompilerService {
 					executableFileName
 				],
 				undefined,
-				5000
-			).catch(() => { })
+				CompilerConfig.CLEANUP_TIMEOUT
+			).catch(cleanupError => {
+				console.warn(
+					'[CompilerService] Cleanup failed:',
+					sanitizeErrorMessage(cleanupError.message)
+				)
+			})
+
+			const errorMessage =
+				error instanceof Error ? error.message : 'Unknown error'
+			console.error(
+				'[CompilerService] Judge error:',
+				sanitizeErrorMessage(errorMessage)
+			)
 
 			// If no results yet, return all as failed
 			if (results.length === 0) {
+				const sanitizedError = sanitizeErrorMessage(errorMessage)
 				for (let i = 0; i < request.testCases.length; i++) {
 					results.push({
 						testCase: i + 1,
 						passed: false,
 						input: request.testCases[i].input,
 						expectedOutput: request.testCases[i].expectedOutput,
-						error: error instanceof Error ? error.message : 'Unknown error'
+						error: sanitizedError
 					})
 				}
 				failed = request.testCases.length
 			}
+		} finally {
+			// Always remove from active compilations
+			this.activeCompilations.delete(workspaceId)
 		}
 
 		return {
@@ -559,7 +747,25 @@ export class CompilerService {
 	/**
 	 * Judge code with test cases loaded from file system
 	 */
-	async judgeFromFile(request: JudgeFromFileRequest): Promise<JudgeResult> {
+	async judgeFromFile(
+		request: JudgeFromFileRequest,
+		identifier: string = 'anonymous'
+	): Promise<JudgeResult> {
+		// Validate request
+		try {
+			validateJudgeFromFileRequest(request)
+		} catch (error) {
+			if (error instanceof ValidationError) {
+				return {
+					passed: 0,
+					failed: 0,
+					total: 0,
+					results: []
+				}
+			}
+			throw error
+		}
+
 		// Load test cases from file system
 		const testCaseInfos = await testCaseService.loadTestCases({
 			roomId: request.roomId,
@@ -591,13 +797,13 @@ export class CompilerService {
 			optimizationLevel: request.optimizationLevel
 		}
 
-		const result = await this.judge(judgeRequest)
+		const result = await this.judge(judgeRequest, identifier)
 
 		// Enhance results with test case metadata (points, etc.)
 		result.results = result.results.map((r, index) => {
 			const testCaseInfo = testCaseInfos[index]
 			return {
-				...r,
+				...r
 				// Add metadata if needed in the future
 			}
 		})
