@@ -112,14 +112,14 @@ export const authService = {
 	},
 
 	refreshToken: async () => {
-		return wrapResponse(null, 501, '', 'Chưa được triển khai')
+		return wrapResponse(null, 501, '', 'Not implemented yet')
 	},
 
 	forgotPassword: async () => {
-		return wrapResponse(null, 501, '', 'Chưa được triển khai')
+		return wrapResponse(null, 501, '', 'Not implemented yet')
 	},
 
 	resetPassword: async () => {
-		return wrapResponse(null, 501, '', 'Chưa được triển khai')
+		return wrapResponse(null, 501, '', 'Not implemented yet')
 	}
 }
