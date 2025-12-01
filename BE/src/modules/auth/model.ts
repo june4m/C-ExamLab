@@ -20,6 +20,7 @@ export const AuthResponseSchema = t.Object({
 		uuid: t.String(),
 		email: t.String(),
 		fullName: t.Union([t.String(), t.Null()]),
+		role: t.Union([t.Literal('USER'), t.Literal('ADMIN')]),
 	}),
 	token: t.String(),
 })

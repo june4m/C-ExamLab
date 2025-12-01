@@ -17,23 +17,24 @@ export const userService = {
 				fullName: accounts.fullName,
 				createdAt: accounts.createdAt,
 				lastLogin: accounts.lastLogin,
+				role: accounts.role
 			})
 			.from(accounts)
 			.where(eq(accounts.uuid, user.userId))
 
 		if (!userProfile) {
 			set.status = 404
-			return wrapResponse(null, 404, '', 'User không tồn tại')
+			return wrapResponse(null, 404, '', 'User not found')
 		}
 
 		return wrapResponse(
 			{
 				...userProfile,
 				createdAt: userProfile.createdAt?.toISOString() || null,
-				lastLogin: userProfile.lastLogin?.toISOString() || null,
+				lastLogin: userProfile.lastLogin?.toISOString() || null
 			},
 			200,
-			'Lấy thông tin thành công'
+			'Profile retrieved successfully'
 		)
-	},
+	}
 }

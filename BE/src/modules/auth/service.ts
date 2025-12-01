@@ -41,10 +41,11 @@ export const authService = {
 			.where(eq(accounts.uuid, user.uuid))
 
 		// Generate JWT token
+		const isAdmin = user.role === 'ADMIN'
 		const token = await jwtUtils.signAccessToken({
 			userId: user.uuid,
 			email: user.email,
-			isAdmin: false,
+			isAdmin
 		})
 
 		// Set cookie
@@ -55,8 +56,9 @@ export const authService = {
 				uuid: user.uuid,
 				email: user.email,
 				fullName: user.fullName,
+				role: user.role
 			},
-			token,
+			token
 		}
 
 		return wrapResponse(response, 200, 'Login successfully')
@@ -87,13 +89,13 @@ export const authService = {
 			uuid: newUuid,
 			email,
 			password: hashedPassword,
-			fullName: fullName || null,
+			fullName: fullName || null
 		})
 
 		const token = await jwtUtils.signAccessToken({
 			userId: newUuid,
 			email: email,
-			isAdmin: false,
+			isAdmin: false
 		})
 
 		// Set cookie
@@ -104,8 +106,9 @@ export const authService = {
 				uuid: newUuid,
 				email: email,
 				fullName: fullName || null,
+				role: 'USER'
 			},
-			token,
+			token
 		}
 
 		return wrapResponse(response, 201, 'Register successful')
