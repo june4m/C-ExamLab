@@ -1,6 +1,4 @@
 import { t } from 'elysia'
-
-// User Profile Response
 export const UserProfileSchema = t.Object({
 	uuid: t.String(),
 	email: t.String(),

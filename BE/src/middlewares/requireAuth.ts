@@ -4,9 +4,18 @@ import { wrapResponse } from '../common/dtos/response'
 
 export const requireAuth = (app: Elysia) =>
 	app
-		.derive(async ({ cookie }) => {
-			const token =
+		.derive(async ({ cookie, headers }) => {
+			// Try to get token from cookie first
+			let token =
 				typeof cookie?.auth?.value === 'string' ? cookie.auth.value : ''
+
+			// If no cookie, try Bearer token from Authorization header
+			if (!token) {
+				const authHeader = headers.authorization
+				if (authHeader && authHeader.startsWith('Bearer ')) {
+					token = authHeader.substring(7)
+				}
+			}
 
 			if (!token) {
 				return { user: null }
