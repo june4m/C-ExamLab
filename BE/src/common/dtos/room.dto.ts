@@ -15,7 +15,7 @@ export const RoomSchema = t.Object({
 export type Room = typeof RoomSchema.static
 
 // Schema cho options khi tạo Room
-export const CreateRoomOptionsSchema = t.Optional(
+export const 	CreateRoomOptionsSchema = t.Optional(
 	t.Object({
 		questionIdList: t.Optional(t.Array(t.String())),
 		testcaseIdList: t.Optional(t.Array(t.String()))

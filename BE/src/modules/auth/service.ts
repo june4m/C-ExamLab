@@ -34,6 +34,12 @@ export const authService = {
 			return wrapResponse(null, 401, '', 'Email or password invalid')
 		}
 
+		// Check if user is banned
+		if (user.isBanned === 1) {
+			set.status = 403
+			return wrapResponse(null, 403, '', 'Your account has been banned')
+		}
+
 		// Update last login
 		await db
 			.update(accounts)
@@ -72,6 +78,12 @@ export const authService = {
 
 	register: async ({ body, cookie, set }: any) => {
 		const { email, password, fullName } = body as RegisterDto
+
+		// Validate email must be @gmail.com
+		if (!email.endsWith('@gmail.com')) {
+			set.status = 400
+			return wrapResponse(null, 400, '', 'Email must be a Gmail address (@gmail.com)')
+		}
 
 		const [existingUser] = await db
 			.select()

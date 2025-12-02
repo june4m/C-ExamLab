@@ -11,24 +11,25 @@ export const auth = new Elysia({ prefix: '/auth', tags: ['Auth'] })
 		response: {
 			200: ApiResponseSchema(AuthResponseSchema),
 			401: ApiResponseSchema(t.Null()),
-			500: ApiResponseSchema(t.Null()),
-		},
+			500: ApiResponseSchema(t.Null())
+		}
 	})
 	.post('/logout', authService.logout, {
 		cookie: t.Cookie({ auth: t.Optional(t.String()) }, COOKIE_OPTIONS),
 		response: {
 			200: ApiResponseSchema(t.Null()),
-			500: ApiResponseSchema(t.Null()),
-		},
+			500: ApiResponseSchema(t.Null())
+		}
 	})
 	.post('/register', authService.register, {
 		body: RegisterSchema,
 		cookie: t.Cookie({ auth: t.Optional(t.String()) }, COOKIE_OPTIONS),
 		response: {
 			201: ApiResponseSchema(AuthResponseSchema),
+			400: ApiResponseSchema(t.Null()),
 			409: ApiResponseSchema(t.Null()),
-			500: ApiResponseSchema(t.Null()),
-		},
+			500: ApiResponseSchema(t.Null())
+		}
 	})
 	.post('/refresh-token', authService.refreshToken)
 	.post('/forgot-password', authService.forgotPassword)

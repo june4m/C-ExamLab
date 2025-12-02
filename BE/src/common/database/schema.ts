@@ -18,6 +18,7 @@ export const accounts = mysqlTable('accounts', {
 	email: varchar('email', { length: 59 }).notNull().unique(),
 	password: varchar('password', { length: 100 }).notNull(),
 	role: mysqlEnum('role', ['USER', 'ADMIN']).default('USER').notNull(),
+	isBanned: tinyint('is_banned').default(0).notNull(),
 	createdAt: datetime('created_at', { fsp: 6 }).default(sql`CURRENT_TIMESTAMP(6)`),
 	updatedAt: datetime('updated_at', { fsp: 6 }).default(sql`CURRENT_TIMESTAMP(6)`),
 	lastLogin: datetime('last_login', { fsp: 6 }),

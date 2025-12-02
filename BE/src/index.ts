@@ -6,6 +6,7 @@ import { auth } from './modules/auth'
 import { compiler } from './modules/compiler'
 import { testcase } from './modules/testcase'
 import { room } from './modules/room'
+import { admin } from './modules/admin'
 
 const app = new Elysia()
 	.get('/ping', 'pong')
@@ -16,6 +17,7 @@ const app = new Elysia()
 	.use(compiler)
 	.use(testcase)
 	.use(room)
+	.use(admin)
 	.listen(3000, () => {
 		console.log('🚀 Server running: http://localhost:3000')
 		console.log('📘 Swagger docs: http://localhost:3000/swagger')
