@@ -69,4 +69,3 @@ export function AdminSidebar() {
 		</aside>
 	)
 }
-

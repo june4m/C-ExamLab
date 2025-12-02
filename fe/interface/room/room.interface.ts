@@ -29,4 +29,3 @@ export interface RoomResponse extends Room {
 	createdAt?: string
 	updatedAt?: string
 }
-

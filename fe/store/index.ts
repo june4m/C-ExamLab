@@ -1,4 +1,2 @@
-// Export all stores
-export * from "./compiler.store"
-export * from "./auth.store"
-
+export { useAuthStore } from "./auth.store"
+export { useCompilerStore } from "./compiler.store"

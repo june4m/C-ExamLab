@@ -19,4 +19,3 @@ export interface UserRequest {
 export interface UserResponse extends User {
 	id: string
 }
-

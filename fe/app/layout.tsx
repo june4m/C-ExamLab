@@ -16,6 +16,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "C Compiler Hub",
   description: "Write, compile, and test your C code online",
+    generator: 'v0.app'
 }
 
 export default function RootLayout({

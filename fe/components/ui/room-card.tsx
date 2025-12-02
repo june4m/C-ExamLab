@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { cn } from '@/lib/utils'
-import { User, Settings } from 'lucide-react'
+import { User, Settings, Eye } from 'lucide-react'
 import Link from 'next/link'
 import type { RoomCardProps } from '@/interface'
 
@@ -64,16 +64,24 @@ export const RoomCard = React.forwardRef<HTMLDivElement, RoomCardProps>(
 					</div>
 				</div>
 
-				{/* Settings Icon */}
-				<Link
-					href={`/admin/rooms/${roomId}/edit`}
-					className="absolute top-0 right-2 rounded-full p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-				>
-					<Settings className="h-5 w-5" />
-				</Link>
+				<div className="absolute top-0 right-2 flex gap-1">
+					<Link
+						href={`/admin/rooms/${roomId}`}
+						className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+						title="Xem chi tiết"
+					>
+						<Eye className="h-5 w-5" />
+					</Link>
+					{/* <Link
+            href={`/admin/rooms/${roomId}/edit`}
+            className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+            title="Cài đặt"
+          >
+            <Settings className="h-5 w-5" />
+          </Link> */}
+				</div>
 			</div>
 		)
 	}
 )
 RoomCard.displayName = 'RoomCard'
-

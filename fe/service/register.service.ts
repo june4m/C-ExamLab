@@ -1,20 +1,26 @@
-'use client'
+import { useMutation } from "@tanstack/react-query"
 
-import { useMutation } from '@tanstack/react-query'
-import { axiosGeneral as axios } from '@/common/axios'
-import type {
-	RegisterResponse,
-	RegisterRequest
-} from '@/interface/auth/register.interface'
+interface RegisterRequest {
+  username: string
+  password: string
+}
+
+interface RegisterResponse {
+  accesstoken: string
+}
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || ""
 
 export function useRegister() {
-	return useMutation({
-		mutationFn: async (payload: RegisterRequest) => {
-			const { data } = await axios.post<RegisterResponse>(
-				'/auth/register',
-				payload
-			)
-			return data
-		}
-	})
+  return useMutation({
+    mutationFn: async (payload: RegisterRequest): Promise<RegisterResponse> => {
+      const res = await fetch(`${API_BASE_URL}/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+      if (!res.ok) throw new Error("Registration failed")
+      return res.json()
+    },
+  })
 }

@@ -10,4 +10,3 @@ export interface CompileResponse {
   error?: string
   success: boolean
 }
-
