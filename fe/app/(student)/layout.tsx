@@ -1,8 +1,8 @@
-
-export default function AdminLayout({
-	children
+export default function StudentLayout({
+	children,
 }: {
 	children: React.ReactNode
 }) {
 	return <>{children}</>
 }
+

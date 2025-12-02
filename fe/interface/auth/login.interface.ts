@@ -1,16 +1,10 @@
 // Login service interfaces
 
 export interface LoginRequest {
-  email: string
-  password: string
+	username: string
+	password: string
 }
 
 export interface LoginResponse {
-  message?: string
-  token?: string
-  user?: {
-    id: string
-    email: string
-    name?: string
-  }
+	accesstoken: string
 }
