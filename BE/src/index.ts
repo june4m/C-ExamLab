@@ -14,7 +14,7 @@ const app = new Elysia()
 	.use(auth)
 	.use(compiler)
 	.use(testcase)
-	.listen(3000, () => {
-		console.log('🚀 Server running: http://localhost:3000')
-		console.log('📘 Swagger docs: http://localhost:3000/swagger')
+	.listen(5000, () => {
+		console.log('🚀 Server running: http://localhost:5000')
+		console.log('📘 Swagger docs: http://localhost:5000/swagger')
 	})
