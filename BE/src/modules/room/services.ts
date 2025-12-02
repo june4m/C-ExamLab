@@ -50,6 +50,12 @@ export const roomService = {
 		const parsedOpenTime = new Date(openTime.replace(' ', 'T'))
 		const parsedCloseTime = new Date(closeTime.replace(' ', 'T'))
 
+		// Validate openTime must be before closeTime
+		if (parsedOpenTime >= parsedCloseTime) {
+			set.status = 400
+			return wrapResponse(null, 400, '', 'Open time must be before close time')
+		}
+
 		await db.insert(rooms).values({
 			uuid: newUuid,
 			code,
@@ -141,18 +147,26 @@ export const roomService = {
 
 		const updateValues: any = { updatedAt: new Date() }
 		if (name !== undefined) updateValues.name = name
-		if (openTime !== undefined) {
-			// Handle both ISO format and "YYYY-MM-DD HH:mm:ss" format
-			const parsedOpenTime = new Date(openTime.replace(' ', 'T'))
-			updateValues.openTime = isNaN(parsedOpenTime.getTime())
-				? null
-				: parsedOpenTime
+
+		// Parse times
+		let parsedOpenTime = openTime !== undefined ? new Date(openTime.replace(' ', 'T')) : null
+		let parsedCloseTime = closeTime !== undefined ? new Date(closeTime.replace(' ', 'T')) : null
+
+		// Get current values for validation
+		const currentOpenTime = parsedOpenTime ?? room.openTime
+		const currentCloseTime = parsedCloseTime ?? room.closeTime
+
+		// Validate openTime must be before closeTime
+		if (currentOpenTime && currentCloseTime && currentOpenTime >= currentCloseTime) {
+			set.status = 400
+			return wrapResponse(null, 400, '', 'Open time must be before close time')
 		}
-		if (closeTime !== undefined) {
-			const parsedCloseTime = new Date(closeTime.replace(' ', 'T'))
-			updateValues.closeTime = isNaN(parsedCloseTime.getTime())
-				? null
-				: parsedCloseTime
+
+		if (parsedOpenTime !== null) {
+			updateValues.openTime = isNaN(parsedOpenTime.getTime()) ? null : parsedOpenTime
+		}
+		if (parsedCloseTime !== null) {
+			updateValues.closeTime = isNaN(parsedCloseTime.getTime()) ? null : parsedCloseTime
 		}
 
 		await db.update(rooms).set(updateValues).where(eq(rooms.uuid, id))
