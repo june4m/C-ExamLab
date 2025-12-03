@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Filter, Plus, Link as LinkIcon, Trash2 } from 'lucide-react'
+import { Filter, Plus, Pencil, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import type { User } from '@/interface'
@@ -164,13 +164,13 @@ export default function AdminUsersPage() {
 									<td className="px-6 py-4 text-sm">{user.updatedAt}</td>
 									<td className="px-6 py-4">
 										<div className="flex items-center gap-2">
-											<Link href={`/admin/users/${user.studentId}`}>
+											<Link href={`/admin/users/${user.studentId}/edit`}>
 												<Button
 													variant="ghost"
 													size="icon"
 													className="h-8 w-8"
 												>
-													<LinkIcon className="h-4 w-4" />
+													<Pencil className="h-4 w-4" />
 												</Button>
 											</Link>
 											<Button

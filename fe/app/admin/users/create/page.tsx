@@ -17,17 +17,11 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
-export default function EditUserPage({
-  params,
-}: {
-  params: { userId: string }
-}) {
+export default function CreateUserPage() {
   const router = useRouter()
-
-  // In real app, fetch user detail by params.userId
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
-    studentId: params.userId,
+    studentId: "",
     fullName: "",
     email: "",
   })
@@ -39,8 +33,8 @@ export default function EditUserPage({
     // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 1000))
 
-    // TODO: Replace with actual API call to update student
-    console.log("[admin] Updating student:", formData)
+    // TODO: Replace with actual API call to create student
+    console.log("[admin] Creating student:", formData)
 
     setIsSubmitting(false)
     router.push("/admin/users")
@@ -57,9 +51,9 @@ export default function EditUserPage({
           <ArrowLeft className="mr-2 h-4 w-4" />
           Quay lại danh sách sinh viên
         </Link>
-        <h1 className="text-2xl font-bold">Chỉnh sửa sinh viên</h1>
+        <h1 className="text-2xl font-bold">Tạo sinh viên mới</h1>
         <p className="text-muted-foreground">
-          Cập nhật thông tin cho sinh viên có mã {params.userId}
+          Điền thông tin để tạo tài khoản sinh viên
         </p>
       </div>
 
@@ -67,21 +61,25 @@ export default function EditUserPage({
         <CardHeader>
           <CardTitle>Thông tin sinh viên</CardTitle>
           <CardDescription>
-            Chỉnh sửa các thông tin cơ bản của sinh viên
+            Nhập các thông tin cơ bản cho sinh viên
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Student ID (readonly) */}
+            {/* Student ID */}
             <div className="space-y-2">
-              <Label htmlFor="studentId">Mã sinh viên</Label>
+              <Label htmlFor="studentId">Mã sinh viên *</Label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   id="studentId"
                   className="pl-10"
+                  placeholder="VD: SV001"
                   value={formData.studentId}
-                  disabled
+                  onChange={(e) =>
+                    setFormData({ ...formData, studentId: e.target.value })
+                  }
+                  required
                 />
               </div>
             </div>
@@ -131,11 +129,11 @@ export default function EditUserPage({
               </Button>
               <Button type="submit" className="flex-1" disabled={isSubmitting}>
                 {isSubmitting ? (
-                  "Đang lưu..."
+                  "Đang tạo..."
                 ) : (
                   <>
                     <Save className="mr-2 h-4 w-4" />
-                    Lưu thay đổi
+                    Tạo sinh viên
                   </>
                 )}
               </Button>
@@ -146,4 +144,5 @@ export default function EditUserPage({
     </div>
   )
 }
+
 
