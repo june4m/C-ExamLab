@@ -7,6 +7,15 @@ import type {
 	TestAnswerResponse
 } from '@/interface/student/test.interface'
 
+// ApiResponse wrapper type matching backend
+interface ApiResponse<T> {
+	success: boolean
+	message?: string
+	error?: string
+	code: number
+	data?: T
+}
+
 // Backend JudgeFromFile request format
 interface JudgeFromFileRequest {
 	code: string
@@ -48,24 +57,32 @@ export function useTestAnswer() {
 				includePrivate: false // Only use public test cases for testing
 			}
 
-			const { data } = await axios.post<JudgeResult>(
+			const { data } = await axios.post<ApiResponse<JudgeResult>>(
 				'/compiler/judge-from-file',
 				backendRequest
 			)
+
+			if (!data.success || !data.data) {
+				throw new Error(
+					data.error || data.message || 'Failed to test answer'
+				)
+			}
+
+			const judgeResult = data.data
 
 			// Check for compilation error
 			// - Top-level error field indicates compilation/judge error
 			// - Empty results might mean test cases couldn't be loaded
 			// - All results having errors without actualOutput suggests compilation failed
 			const hasCompilationError =
-				!!data.error ||
-				(data.results.length > 0 &&
-					data.results.every(r => r.error && !r.actualOutput))
+				!!judgeResult.error ||
+				(judgeResult.results.length > 0 &&
+					judgeResult.results.every(r => r.error && !r.actualOutput))
 
 			// Transform backend response to frontend format
 			const response: TestAnswerResponse = {
 				compileStatus: hasCompilationError ? false : 'success',
-				results: data.results.map(result => ({
+				results: judgeResult.results.map(result => ({
 					index: result.testCase,
 					input: result.input,
 					expectedOutput: result.expectedOutput,
@@ -73,7 +90,9 @@ export function useTestAnswer() {
 					passed: result.passed,
 					error: result.error || null
 				})),
-				overallPassed: data.passed === data.total && data.total > 0
+				overallPassed:
+					judgeResult.passed === judgeResult.total &&
+					judgeResult.total > 0
 			}
 
 			return response

@@ -16,7 +16,6 @@ import {
 	useGetProfile,
 	useUpdateProfile
 } from '@/service/student/profile.service'
-import type { UpdateProfileRequest } from '@/interface/student/profile.interface'
 import { Loader2, AlertCircle, CheckCircle2 } from 'lucide-react'
 
 // Zod schema for form validation
@@ -60,12 +59,11 @@ export function ProfileEditForm() {
 		},
 		onSubmit: async values => {
 			try {
-				// Include studentId if available from profile
-				const updatePayload: UpdateProfileRequest = {
-					...(profile?.studentId && { studentId: profile.studentId }),
-					...values
-				}
-				await updateProfile.mutateAsync(updatePayload)
+				// Include studentId from profile
+				await updateProfile.mutateAsync({
+					...values,
+					studentId: profile?.studentId
+				})
 				// Success is handled by the mutation's onSuccess callback
 				// Redirect back to profile page after a short delay to show success message
 				setTimeout(() => {

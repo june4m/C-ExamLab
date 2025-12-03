@@ -96,23 +96,24 @@ export function ProfileView({ profile, isLoading, error }: ProfileViewProps) {
 				<div className="grid gap-4">
 					<div className="grid gap-2">
 						<label className="text-sm font-medium text-muted-foreground">
-							Student ID
-						</label>
-						<p className="text-base font-medium">{profile.studentId}</p>
-					</div>
-
-					<div className="grid gap-2">
-						<label className="text-sm font-medium text-muted-foreground">
 							Full Name
 						</label>
-						<p className="text-base">{profile.full_name}</p>
+						<p className="text-base">
+							{profile.full_name || (
+								<span className="text-muted-foreground italic">Not set</span>
+							)}
+						</p>
 					</div>
 
 					<div className="grid gap-2">
 						<label className="text-sm font-medium text-muted-foreground">
 							Email
 						</label>
-						<p className="text-base">{profile.email}</p>
+						<p className="text-base">
+							{profile.email || (
+								<span className="text-muted-foreground italic">Not set</span>
+							)}
+						</p>
 					</div>
 
 					<div className="grid gap-2">
