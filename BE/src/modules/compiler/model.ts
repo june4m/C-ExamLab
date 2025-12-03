@@ -1,3 +1,5 @@
+import type { CompilerErrorCode } from './error-codes'
+
 export interface CompileRequest {
 	code: string
 	input?: string
@@ -10,10 +12,11 @@ export interface CompileResult {
 	success: boolean
 	output?: string
 	error?: string
+	errorCode?: CompilerErrorCode
+	errorDetails?: string
 	executionTime?: number // milliseconds
 	compilationTime?: number // milliseconds
 	memoryUsed?: number // MB
-	compilationError?: string
 }
 
 export interface TestCase {
@@ -50,6 +53,7 @@ export interface JudgeResult {
 		expectedOutput: string
 		actualOutput?: string
 		error?: string
+		errorCode?: CompilerErrorCode
 		executionTime?: number
 	}>
 }

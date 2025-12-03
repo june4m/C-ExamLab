@@ -6,6 +6,10 @@ import openapi from '@elysiajs/openapi'
 import { auth } from './modules/auth'
 import { compiler } from './modules/compiler'
 import { testcase } from './modules/testcase'
+import { room } from './modules/room'
+import { admin } from './modules/admin'
+import { question } from './modules/question'
+import { user } from './modules/user'
 
 const app = new Elysia()
 	.use(
@@ -23,6 +27,10 @@ const app = new Elysia()
 	.use(auth)
 	.use(compiler)
 	.use(testcase)
+	.use(room)
+	.use(admin)
+	.use(question)
+	.use(user)
 	.listen(5000, () => {
 		console.log('🚀 Server running: http://localhost:5000')
 		console.log('📘 Swagger docs: http://localhost:5000/swagger')
