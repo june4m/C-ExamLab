@@ -3,7 +3,15 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { CheckCircle2, XCircle, AlertCircle, Loader2, Trophy, Clock, HardDrive } from 'lucide-react'
+import {
+	CheckCircle2,
+	XCircle,
+	AlertCircle,
+	Loader2,
+	Trophy,
+	Clock,
+	HardDrive
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { SubmitAnswerResponse } from '@/interface/student/submission.interface'
 
@@ -13,12 +21,22 @@ interface SubmissionResultsProps {
 	error?: Error | null
 }
 
-function getStatusBadgeVariant(status: string): 'success' | 'destructive' | 'warning' | 'default' {
+function getStatusBadgeVariant(
+	status: string
+): 'success' | 'destructive' | 'warning' | 'default' {
 	const lowerStatus = status.toLowerCase()
-	if (lowerStatus.includes('accepted') || lowerStatus.includes('success') || lowerStatus.includes('passed')) {
+	if (
+		lowerStatus.includes('accepted') ||
+		lowerStatus.includes('success') ||
+		lowerStatus.includes('passed')
+	) {
 		return 'success'
 	}
-	if (lowerStatus.includes('error') || lowerStatus.includes('failed') || lowerStatus.includes('wrong')) {
+	if (
+		lowerStatus.includes('error') ||
+		lowerStatus.includes('failed') ||
+		lowerStatus.includes('wrong')
+	) {
 		return 'destructive'
 	}
 	if (lowerStatus.includes('timeout') || lowerStatus.includes('memory')) {
@@ -27,14 +45,20 @@ function getStatusBadgeVariant(status: string): 'success' | 'destructive' | 'war
 	return 'default'
 }
 
-function formatTime(ms: number): string {
+function formatTime(ms: number | null): string {
+	if (ms === null || ms === undefined) {
+		return 'N/A'
+	}
 	if (ms < 1000) {
 		return `${ms}ms`
 	}
 	return `${(ms / 1000).toFixed(2)}s`
 }
 
-function formatMemory(kb: number): string {
+function formatMemory(kb: number | null): string {
+	if (kb === null || kb === undefined) {
+		return 'N/A'
+	}
 	if (kb < 1024) {
 		return `${kb} KB`
 	}
@@ -80,7 +104,9 @@ export function SubmissionResults({
 								Error submitting answer
 							</p>
 							<p className="text-xs text-muted-foreground mt-1">
-								{error instanceof Error ? error.message : 'An unknown error occurred'}
+								{error instanceof Error
+									? error.message
+									: 'An unknown error occurred'}
 							</p>
 						</div>
 					</div>
@@ -94,10 +120,11 @@ export function SubmissionResults({
 	}
 
 	const statusVariant = getStatusBadgeVariant(result.status)
-	const passedCount = result.details.filter(d => 
-		d.status.toLowerCase().includes('accepted') || 
-		d.status.toLowerCase().includes('passed') ||
-		d.status.toLowerCase().includes('success')
+	const passedCount = result.details.filter(
+		d =>
+			d.status.toLowerCase().includes('accepted') ||
+			d.status.toLowerCase().includes('passed') ||
+			d.status.toLowerCase().includes('success')
 	).length
 	const totalCount = result.details.length
 
@@ -129,26 +156,36 @@ export function SubmissionResults({
 							<Trophy className="h-4 w-4 text-primary" />
 							<p className="text-xs font-medium text-muted-foreground">Score</p>
 						</div>
-						<p className="text-2xl font-bold">{result.score}</p>
+						<p className="text-2xl font-bold">{result.score ?? 'N/A'}</p>
 					</div>
 					<div className="p-4 rounded-md bg-muted/50 border">
 						<div className="flex items-center gap-2 mb-1">
 							<Clock className="h-4 w-4 text-primary" />
-							<p className="text-xs font-medium text-muted-foreground">Total Runtime</p>
+							<p className="text-xs font-medium text-muted-foreground">
+								Total Runtime
+							</p>
 						</div>
-						<p className="text-2xl font-bold">{formatTime(result.totalRunTime)}</p>
+						<p className="text-2xl font-bold">
+							{formatTime(result.totalRunTime)}
+						</p>
 					</div>
 					<div className="p-4 rounded-md bg-muted/50 border">
 						<div className="flex items-center gap-2 mb-1">
 							<HardDrive className="h-4 w-4 text-primary" />
-							<p className="text-xs font-medium text-muted-foreground">Memory Used</p>
+							<p className="text-xs font-medium text-muted-foreground">
+								Memory Used
+							</p>
 						</div>
-						<p className="text-2xl font-bold">{formatMemory(result.memoryUsed)}</p>
+						<p className="text-2xl font-bold">
+							{formatMemory(result.memoryUsed)}
+						</p>
 					</div>
 					<div className="p-4 rounded-md bg-muted/50 border">
 						<div className="flex items-center gap-2 mb-1">
 							<CheckCircle2 className="h-4 w-4 text-primary" />
-							<p className="text-xs font-medium text-muted-foreground">Test Cases</p>
+							<p className="text-xs font-medium text-muted-foreground">
+								Test Cases
+							</p>
 						</div>
 						<p className="text-2xl font-bold">
 							{passedCount}/{totalCount}
@@ -186,7 +223,10 @@ export function SubmissionResults({
 												<span className="font-semibold text-sm">
 													Test Case {detail.testCaseIndex}
 												</span>
-												<Badge variant={detailStatusVariant} className="text-xs">
+												<Badge
+													variant={detailStatusVariant}
+													className="text-xs"
+												>
 													{detail.status}
 												</Badge>
 											</div>
@@ -238,4 +278,3 @@ export function SubmissionResults({
 		</Card>
 	)
 }
-

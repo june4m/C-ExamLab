@@ -3,6 +3,8 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
+import { useAuthStore } from '@/store/auth.store'
+import { Loader2 } from 'lucide-react'
 
 interface ProtectedRouteProps {
 	children: React.ReactNode
@@ -22,16 +24,33 @@ export function ProtectedRoute({
 	fallback = null
 }: ProtectedRouteProps) {
 	const { isAuthenticated, token } = useAuth()
+	const hasHydrated = useAuthStore(state => state._hasHydrated)
 	const router = useRouter()
 
 	useEffect(() => {
-		// Check authentication status and redirect if not authenticated
-		if (!isAuthenticated || !token) {
+		// Only redirect after store has hydrated and user is not authenticated
+		if (hasHydrated && (!isAuthenticated || !token)) {
 			router.push(redirectTo)
 		}
-	}, [isAuthenticated, token, router, redirectTo])
+	}, [hasHydrated, isAuthenticated, token, router, redirectTo])
 
-	// Show fallback or nothing if not authenticated
+	// Show loading state while hydrating
+	if (!hasHydrated) {
+		return (
+			<>
+				{fallback || (
+					<div className="flex min-h-screen items-center justify-center">
+						<div className="flex flex-col items-center gap-3">
+							<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+							<p className="text-sm text-muted-foreground">Loading...</p>
+						</div>
+					</div>
+				)}
+			</>
+		)
+	}
+
+	// Show fallback or nothing if not authenticated (after hydration)
 	if (!isAuthenticated || !token) {
 		return <>{fallback}</>
 	}

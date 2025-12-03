@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useFormik } from 'formik'
+import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -11,85 +12,71 @@ import {
 	CardHeader,
 	CardTitle
 } from '@/components/ui/card'
-import { useGetProfile, useUpdateProfile } from '@/service/student/profile.service'
+import {
+	useGetProfile,
+	useUpdateProfile
+} from '@/service/student/profile.service'
 import type { UpdateProfileRequest } from '@/interface/student/profile.interface'
 import { Loader2, AlertCircle, CheckCircle2 } from 'lucide-react'
+
+// Zod schema for form validation
+const profileFormSchema = z.object({
+	full_name: z
+		.string()
+		.min(1, 'Full name is required')
+		.trim()
+		.refine(val => val.length > 0, 'Full name cannot be empty'),
+	email: z
+		.string()
+		.min(1, 'Email is required')
+		.email('Please enter a valid email address')
+})
+
+type ProfileFormValues = z.infer<typeof profileFormSchema>
 
 export function ProfileEditForm() {
 	const router = useRouter()
 	const { data: profile, isLoading: isLoadingProfile } = useGetProfile()
 	const updateProfile = useUpdateProfile()
 
-	const [formData, setFormData] = useState<UpdateProfileRequest>({
-		studentId: '',
-		full_name: '',
-		email: ''
-	})
-	const [errors, setErrors] = useState<Partial<Record<keyof UpdateProfileRequest, string>>>({})
-
-	// Initialize form data when profile loads
-	useEffect(() => {
-		if (profile) {
-			setFormData({
-				studentId: profile.studentId,
-				full_name: profile.full_name,
-				email: profile.email
+	const formik = useFormik<ProfileFormValues>({
+		initialValues: {
+			full_name: profile?.full_name || '',
+			email: profile?.email || ''
+		},
+		enableReinitialize: true,
+		validate: values => {
+			const result = profileFormSchema.safeParse(values)
+			if (result.success) {
+				return {}
+			}
+			const errors: Partial<Record<keyof ProfileFormValues, string>> = {}
+			result.error.issues.forEach(issue => {
+				if (issue.path[0]) {
+					errors[issue.path[0] as keyof ProfileFormValues] = issue.message
+				}
 			})
+			return errors
+		},
+		onSubmit: async values => {
+			try {
+				// Include studentId if available from profile
+				const updatePayload: UpdateProfileRequest = {
+					...(profile?.studentId && { studentId: profile.studentId }),
+					...values
+				}
+				await updateProfile.mutateAsync(updatePayload)
+				// Success is handled by the mutation's onSuccess callback
+				// Redirect back to profile page after a short delay to show success message
+				setTimeout(() => {
+					router.push('/profile')
+				}, 1500)
+			} catch (error) {
+				// Error is handled by the error state in the mutation
+				console.error('Failed to update profile:', error)
+			}
 		}
-	}, [profile])
-
-	const validateForm = (): boolean => {
-		const newErrors: Partial<Record<keyof UpdateProfileRequest, string>> = {}
-
-		if (!formData.full_name.trim()) {
-			newErrors.full_name = 'Full name is required'
-		}
-
-		if (!formData.email.trim()) {
-			newErrors.email = 'Email is required'
-		} else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-			newErrors.email = 'Please enter a valid email address'
-		}
-
-		setErrors(newErrors)
-		return Object.keys(newErrors).length === 0
-	}
-
-	const handleSubmit = async (e: React.FormEvent) => {
-		e.preventDefault()
-
-		if (!validateForm()) {
-			return
-		}
-
-		try {
-			await updateProfile.mutateAsync(formData)
-			// Success is handled by the mutation's onSuccess callback
-			// Redirect back to profile page after a short delay to show success message
-			setTimeout(() => {
-				router.push('/profile')
-			}, 1500)
-		} catch (error) {
-			// Error is handled by the error state in the mutation
-			console.error('Failed to update profile:', error)
-		}
-	}
-
-	const handleChange = (field: keyof UpdateProfileRequest) => (
-		e: React.ChangeEvent<HTMLInputElement>
-	) => {
-		setFormData((prev) => ({
-			...prev,
-			[field]: e.target.value
-		}))
-		// Clear error for this field when user starts typing
-		if (errors[field]) {
-			setErrors((prev) => ({
-				...prev,
-				[field]: undefined
-			}))
-		}
-	}
+	})
 
 	if (isLoadingProfile) {
 		return (
@@ -151,65 +138,54 @@ export function ProfileEditForm() {
 					</div>
 				)}
 
-				<form onSubmit={handleSubmit} className="space-y-4">
+				<form onSubmit={formik.handleSubmit} className="space-y-4">
 					<div className="grid gap-2">
-						<label
-							htmlFor="studentId"
-							className="text-sm font-medium text-muted-foreground"
-						>
-							Student ID
-						</label>
-						<Input
-							id="studentId"
-							type="text"
-							value={formData.studentId}
-							disabled
-							className="bg-muted cursor-not-allowed"
-						/>
-						<p className="text-xs text-muted-foreground">
-							Student ID cannot be changed
-						</p>
-					</div>
-
-					<div className="grid gap-2">
-						<label
-							htmlFor="full_name"
-							className="text-sm font-medium"
-						>
+						<label htmlFor="full_name" className="text-sm font-medium">
 							Full Name <span className="text-destructive">*</span>
 						</label>
 						<Input
 							id="full_name"
+							name="full_name"
 							type="text"
-							value={formData.full_name}
-							onChange={handleChange('full_name')}
+							value={formik.values.full_name}
+							onChange={formik.handleChange}
+							onBlur={formik.handleBlur}
 							disabled={updateProfile.isPending}
-							className={errors.full_name ? 'border-destructive' : ''}
+							className={
+								formik.touched.full_name && formik.errors.full_name
+									? 'border-destructive'
+									: ''
+							}
 							placeholder="Enter your full name"
 						/>
-						{errors.full_name && (
-							<p className="text-sm text-destructive">{errors.full_name}</p>
+						{formik.touched.full_name && formik.errors.full_name && (
+							<p className="text-sm text-destructive">
+								{formik.errors.full_name}
+							</p>
 						)}
 					</div>
 
 					<div className="grid gap-2">
-						<label
-							htmlFor="email"
-							className="text-sm font-medium"
-						>
+						<label htmlFor="email" className="text-sm font-medium">
 							Email <span className="text-destructive">*</span>
 						</label>
 						<Input
 							id="email"
+							name="email"
 							type="email"
-							value={formData.email}
-							onChange={handleChange('email')}
+							value={formik.values.email}
+							onChange={formik.handleChange}
+							onBlur={formik.handleBlur}
 							disabled={updateProfile.isPending}
-							className={errors.email ? 'border-destructive' : ''}
+							className={
+								formik.touched.email && formik.errors.email
+									? 'border-destructive'
+									: ''
+							}
 							placeholder="Enter your email address"
 						/>
-						{errors.email && (
-							<p className="text-sm text-destructive">{errors.email}</p>
+						{formik.touched.email && formik.errors.email && (
+							<p className="text-sm text-destructive">{formik.errors.email}</p>
 						)}
 					</div>
 
@@ -241,4 +217,3 @@ export function ProfileEditForm() {
 		</Card>
 	)
 }
-

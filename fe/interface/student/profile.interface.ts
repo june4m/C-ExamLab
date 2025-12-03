@@ -9,7 +9,7 @@ export interface StudentProfileResponse {
 }
 
 export interface UpdateProfileRequest {
-	studentId: string
+	studentId?: string
 	full_name: string
 	email: string
 }
@@ -17,4 +17,3 @@ export interface UpdateProfileRequest {
 export interface UpdateProfileResponse {
 	message: string
 }
-

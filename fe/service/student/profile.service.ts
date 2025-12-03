@@ -13,7 +13,7 @@ export function useGetProfile() {
 		queryKey: ['student', 'profile'],
 		queryFn: async () => {
 			const { data } = await axios.get<StudentProfileResponse>(
-				'/student/profile'
+				'/user/profile'
 			)
 			return data
 		},
@@ -27,7 +27,7 @@ export function useUpdateProfile() {
 	return useMutation({
 		mutationFn: async (payload: UpdateProfileRequest) => {
 			const { data } = await axios.patch<UpdateProfileResponse>(
-				'/student/profile',
+				'/user/student/profile',
 				payload
 			)
 			return data
