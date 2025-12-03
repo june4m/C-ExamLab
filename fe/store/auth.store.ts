@@ -5,7 +5,10 @@ export interface User {
 	uuid: string
 	email: string
 	fullName: string | null
+<<<<<<< HEAD
 	role?: string
+=======
+>>>>>>> 9cf62f544a07cb6c53b1297f7878a607451d40c2
 	createdAt?: string | null
 	lastLogin?: string | null
 }

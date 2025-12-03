@@ -4,7 +4,10 @@ import type React from 'react'
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+<<<<<<< HEAD
 import { useMutation } from '@tanstack/react-query'
+=======
+>>>>>>> 9cf62f544a07cb6c53b1297f7878a607451d40c2
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -16,6 +19,7 @@ import {
 	CardTitle
 } from '@/components/ui/card'
 import { AlertCircle } from 'lucide-react'
+<<<<<<< HEAD
 import { RegisterRequest } from '@/interface'
 import { useAuthStore } from '@/store/auth.store'
 
@@ -51,6 +55,10 @@ function useRegister() {
 		}
 	})
 }
+=======
+import { useRegister } from '@/service/register.service'
+import { useAuthStore } from '@/store/auth.store'
+>>>>>>> 9cf62f544a07cb6c53b1297f7878a607451d40c2
 
 export function RegisterForm() {
 	const router = useRouter()
@@ -66,20 +74,29 @@ export function RegisterForm() {
 		general?: string
 	}>({})
 
+<<<<<<< HEAD
 	const { mutate: registerMutation, isPending } = useRegister()
 	const login = useAuthStore(state => state.login)
+=======
+	const { mutate: register, isPending } = useRegister()
+	const loginStore = useAuthStore(state => state.login)
+>>>>>>> 9cf62f544a07cb6c53b1297f7878a607451d40c2
 
 	const validate = () => {
 		const newErrors: typeof errors = {}
 		if (!email.trim()) {
 			newErrors.email = 'Email is required'
 		} else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+<<<<<<< HEAD
 			newErrors.email = 'Please enter a valid email'
 		}
 		if (!fullName.trim()) {
 			newErrors.fullName = 'Full name is required'
 		} else if (fullName.trim().length < 2) {
 			newErrors.fullName = 'Full name must be at least 2 characters'
+=======
+			newErrors.email = 'Please enter a valid email address'
+>>>>>>> 9cf62f544a07cb6c53b1297f7878a607451d40c2
 		}
 		if (!password) {
 			newErrors.password = 'Password is required'
@@ -99,6 +116,7 @@ export function RegisterForm() {
 		e.preventDefault()
 		if (!validate()) return
 
+<<<<<<< HEAD
 		registerMutation(
 			{ email, password, fullName },
 			{
@@ -110,6 +128,14 @@ export function RegisterForm() {
 						role: data.data.user.role
 					})
 					router.push('/dashboard')
+=======
+		register(
+			{ email, password, fullName: fullName.trim() || undefined },
+			{
+				onSuccess: data => {
+					loginStore(data.token, data.user)
+					router.push('/')
+>>>>>>> 9cf62f544a07cb6c53b1297f7878a607451d40c2
 				},
 				onError: (error: Error) => {
 					setErrors({
@@ -135,6 +161,7 @@ export function RegisterForm() {
 						</div>
 					)}
 					<div className="space-y-2">
+<<<<<<< HEAD
 						<label htmlFor="fullName" className="text-sm font-medium">
 							Full Name
 						</label>
@@ -156,6 +183,8 @@ export function RegisterForm() {
 						)}
 					</div>
 					<div className="space-y-2">
+=======
+>>>>>>> 9cf62f544a07cb6c53b1297f7878a607451d40c2
 						<label htmlFor="email" className="text-sm font-medium">
 							Email
 						</label>
@@ -175,7 +204,33 @@ export function RegisterForm() {
 							<p className="text-sm text-destructive">{errors.email}</p>
 						)}
 					</div>
+<<<<<<< HEAD
 
+=======
+					<div className="space-y-2">
+						<label htmlFor="fullName" className="text-sm font-medium">
+							Full Name{' '}
+							<span className="text-muted-foreground">(optional)</span>
+						</label>
+						<Input
+							id="fullName"
+							type="text"
+							placeholder="Enter your full name"
+							value={fullName}
+							onChange={e => {
+								setFullName(e.target.value)
+								if (errors.fullName)
+									setErrors({ ...errors, fullName: undefined })
+							}}
+							disabled={isPending}
+							className={errors.fullName ? 'border-destructive' : ''}
+							maxLength={48}
+						/>
+						{errors.fullName && (
+							<p className="text-sm text-destructive">{errors.fullName}</p>
+						)}
+					</div>
+>>>>>>> 9cf62f544a07cb6c53b1297f7878a607451d40c2
 					<div className="space-y-2">
 						<label htmlFor="password" className="text-sm font-medium">
 							Password

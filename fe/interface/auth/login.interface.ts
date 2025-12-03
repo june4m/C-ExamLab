@@ -6,5 +6,18 @@ export interface LoginRequest {
 }
 
 export interface LoginResponse {
-	accesstoken: string
+	user: {
+		uuid: string
+		email: string
+		fullName: string | null
+	}
+	token: string
+}
+
+export interface ApiResponse<T> {
+	success: boolean
+	message?: string
+	error?: string
+	code: number
+	data?: T
 }
