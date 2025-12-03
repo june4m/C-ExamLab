@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, use } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft, Save, User, Mail } from "lucide-react"
@@ -20,14 +20,15 @@ import { Label } from "@/components/ui/label"
 export default function EditUserPage({
   params,
 }: {
-  params: { userId: string }
+  params: Promise<{ userId: string }>
 }) {
   const router = useRouter()
+  const { userId } = use(params)
 
-  // In real app, fetch user detail by params.userId
+  // In real app, fetch user detail by userId
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
-    studentId: params.userId,
+    studentId: userId,
     fullName: "",
     email: "",
   })
@@ -59,7 +60,7 @@ export default function EditUserPage({
         </Link>
         <h1 className="text-2xl font-bold">Chỉnh sửa sinh viên</h1>
         <p className="text-muted-foreground">
-          Cập nhật thông tin cho sinh viên có mã {params.userId}
+          Cập nhật thông tin cho sinh viên có mã {userId}
         </p>
       </div>
 

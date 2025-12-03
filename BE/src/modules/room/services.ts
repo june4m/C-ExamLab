@@ -10,6 +10,19 @@ import type {
 	UpdateRoomResponse
 } from '../../common/dtos/room.dto'
 
+// Helper to select only existing columns from rooms table
+// (reminderSentAt column doesn't exist in database yet)
+const selectRoomColumns = {
+	uuid: rooms.uuid,
+	code: rooms.code,
+	name: rooms.name,
+	openTime: rooms.openTime,
+	closeTime: rooms.closeTime,
+	createdBy: rooms.createdBy,
+	createdAt: rooms.createdAt,
+	updatedAt: rooms.updatedAt
+}
+
 // Helper to format room data for response
 const formatRoom = (room: any): Room => ({
 	uuid: room.uuid,
@@ -31,7 +44,7 @@ export const roomService = {
 
 		// Check if room code already exists (regenerate if needed)
 		const [existingRoom] = await db
-			.select()
+			.select(selectRoomColumns)
 			.from(rooms)
 			.where(eq(rooms.code, code))
 
@@ -78,7 +91,7 @@ export const roomService = {
 
 	getRooms: async ({ user }: any) => {
 		const roomList = await db
-			.select()
+			.select(selectRoomColumns)
 			.from(rooms)
 			.where(eq(rooms.createdBy, user.userId))
 
@@ -90,7 +103,7 @@ export const roomService = {
 	},
 
 	getAllRooms: async () => {
-		const roomList = await db.select().from(rooms)
+		const roomList = await db.select(selectRoomColumns).from(rooms)
 
 		return wrapResponse(
 			roomList.map(formatRoom),
@@ -102,7 +115,10 @@ export const roomService = {
 	getRoomById: async ({ params, user, set }: any) => {
 		const { id } = params
 
-		const [room] = await db.select().from(rooms).where(eq(rooms.uuid, id))
+		const [room] = await db
+			.select(selectRoomColumns)
+			.from(rooms)
+			.where(eq(rooms.uuid, id))
 
 		if (!room) {
 			set.status = 404
@@ -127,7 +143,10 @@ export const roomService = {
 		const { id } = params
 		const { name, openTime, closeTime } = body as UpdateRoomDto
 
-		const [room] = await db.select().from(rooms).where(eq(rooms.uuid, id))
+		const [room] = await db
+			.select(selectRoomColumns)
+			.from(rooms)
+			.where(eq(rooms.uuid, id))
 
 		if (!room) {
 			set.status = 404
@@ -149,24 +168,34 @@ export const roomService = {
 		if (name !== undefined) updateValues.name = name
 
 		// Parse times
-		let parsedOpenTime = openTime !== undefined ? new Date(openTime.replace(' ', 'T')) : null
-		let parsedCloseTime = closeTime !== undefined ? new Date(closeTime.replace(' ', 'T')) : null
+		let parsedOpenTime =
+			openTime !== undefined ? new Date(openTime.replace(' ', 'T')) : null
+		let parsedCloseTime =
+			closeTime !== undefined ? new Date(closeTime.replace(' ', 'T')) : null
 
 		// Get current values for validation
 		const currentOpenTime = parsedOpenTime ?? room.openTime
 		const currentCloseTime = parsedCloseTime ?? room.closeTime
 
 		// Validate openTime must be before closeTime
-		if (currentOpenTime && currentCloseTime && currentOpenTime >= currentCloseTime) {
+		if (
+			currentOpenTime &&
+			currentCloseTime &&
+			currentOpenTime >= currentCloseTime
+		) {
 			set.status = 400
 			return wrapResponse(null, 400, '', 'Open time must be before close time')
 		}
 
 		if (parsedOpenTime !== null) {
-			updateValues.openTime = isNaN(parsedOpenTime.getTime()) ? null : parsedOpenTime
+			updateValues.openTime = isNaN(parsedOpenTime.getTime())
+				? null
+				: parsedOpenTime
 		}
 		if (parsedCloseTime !== null) {
-			updateValues.closeTime = isNaN(parsedCloseTime.getTime()) ? null : parsedCloseTime
+			updateValues.closeTime = isNaN(parsedCloseTime.getTime())
+				? null
+				: parsedCloseTime
 		}
 
 		await db.update(rooms).set(updateValues).where(eq(rooms.uuid, id))
@@ -181,7 +210,10 @@ export const roomService = {
 	deleteRoom: async ({ params, user, set }: any) => {
 		const { id } = params
 
-		const [room] = await db.select().from(rooms).where(eq(rooms.uuid, id))
+		const [room] = await db
+			.select(selectRoomColumns)
+			.from(rooms)
+			.where(eq(rooms.uuid, id))
 
 		if (!room) {
 			set.status = 404
