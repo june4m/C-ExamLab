@@ -1,4 +1,5 @@
 import { Elysia } from 'elysia'
+import { cors } from '@elysiajs/cors'
 import { swagger } from '@elysiajs/swagger'
 import bearer from '@elysiajs/bearer'
 import openapi from '@elysiajs/openapi'
@@ -7,6 +8,14 @@ import { compiler } from './modules/compiler'
 import { testcase } from './modules/testcase'
 
 const app = new Elysia()
+	.use(
+		cors({
+			origin: 'http://localhost:3000',
+			credentials: true,
+			methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+			allowedHeaders: ['Content-Type', 'Authorization']
+		})
+	)
 	.get('/ping', 'pong')
 	.use(swagger())
 	.use(openapi())

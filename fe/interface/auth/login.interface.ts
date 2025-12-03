@@ -1,10 +1,23 @@
 // Login service interfaces
 
 export interface LoginRequest {
-	username: string
+	email: string
 	password: string
 }
 
 export interface LoginResponse {
-	accesstoken: string
+	user: {
+		uuid: string
+		email: string
+		fullName: string | null
+	}
+	token: string
+}
+
+export interface ApiResponse<T> {
+	success: boolean
+	message?: string
+	error?: string
+	code: number
+	data?: T
 }

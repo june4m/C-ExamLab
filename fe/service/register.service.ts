@@ -1,26 +1,17 @@
 import { useMutation } from "@tanstack/react-query"
-
-interface RegisterRequest {
-  username: string
-  password: string
-}
-
-interface RegisterResponse {
-  accesstoken: string
-}
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || ""
+import { axiosGeneral as axios } from "@/common/axios"
+import type { RegisterRequest, RegisterResponse, ApiResponse } from "@/interface/auth/register.interface"
 
 export function useRegister() {
   return useMutation({
     mutationFn: async (payload: RegisterRequest): Promise<RegisterResponse> => {
-      const res = await fetch(`${API_BASE_URL}/auth/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      })
-      if (!res.ok) throw new Error("Registration failed")
-      return res.json()
+      const { data } = await axios.post<ApiResponse<RegisterResponse>>("/auth/register", payload)
+      
+      if (!data.success || !data.data) {
+        throw new Error(data.error || data.message || "Registration failed")
+      }
+      
+      return data.data
     },
   })
 }
