@@ -1,36 +1,37 @@
-import type { Metadata } from "next"
-import { Geist, Geist_Mono } from "next/font/google"
-import "./globals.css"
-import { QueryProvider } from "@/components/providers/QueryProvider"
+import type { Metadata } from 'next'
+import { Geist, Geist_Mono } from 'next/font/google'
+import './globals.css'
+import { QueryProvider } from '@/components/providers/QueryProvider'
+import { Toaster } from '@/components/ui/toaster'
 
 const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+	variable: '--font-geist-sans',
+	subsets: ['latin']
 })
 
 const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+	variable: '--font-geist-mono',
+	subsets: ['latin']
 })
 
 export const metadata: Metadata = {
-  title: "C Compiler Hub",
-  description: "Write, compile, and test your C code online",
-    generator: 'v0.app'
+	title: 'C Compiler Hub',
+	description: 'Write, compile, and test your C code online'
 }
 
 export default function RootLayout({
-  children,
+	children
 }: Readonly<{
-  children: React.ReactNode
+	children: React.ReactNode
 }>) {
-  return (
-    <html lang='en'>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        <QueryProvider>{children}</QueryProvider>
-      </body>
-    </html>
-  )
+	return (
+		<html lang="en">
+			<body
+				className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+			>
+				<QueryProvider>{children}</QueryProvider>
+				<Toaster />
+			</body>
+		</html>
+	)
 }

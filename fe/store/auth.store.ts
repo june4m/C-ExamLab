@@ -1,34 +1,54 @@
 import { create } from "zustand"
 
+export interface User {
+  uuid: string
+  email: string
+  fullName: string | null
+  createdAt?: string | null
+  lastLogin?: string | null
+}
+
 interface AuthState {
   token: string | null
+  user: User | null
   isAuthenticated: boolean
   setToken: (token: string | null) => void
+  setUser: (user: User | null) => void
+  login: (token: string, user: User) => void
   logout: () => void
 }
 
-function getInitialToken(): string | null {
-  if (typeof window === "undefined") return null
-  return localStorage.getItem("auth-token")
-}
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set) => ({
+      token: null,
+      user: null,
+      isAuthenticated: false,
+      setToken: (token) =>
+        set({
+          token,
+          isAuthenticated: !!token,
+        }),
+      setUser: (user) =>
+        set({
+          user,
+        }),
+      login: (token, user) =>
+        set({
+          token,
+          user,
+          isAuthenticated: !!token,
+        }),
+      logout: () =>
+        set({
+          token: null,
+          user: null,
+          isAuthenticated: false,
+        }),
+    }),
+    {
+      name: "auth-storage",
+    }
+  )
+)
 
-export const useAuthStore = create<AuthState>()((set) => ({
-  token: getInitialToken(),
-  isAuthenticated: !!getInitialToken(),
-  setToken: (token: string | null) => {
-    if (typeof window !== "undefined") {
-      if (token) {
-        localStorage.setItem("auth-token", token)
-      } else {
-        localStorage.removeItem("auth-token")
-      }
-    }
-    set({ token, isAuthenticated: !!token })
-  },
-  logout: () => {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("auth-token")
-    }
-    set({ token: null, isAuthenticated: false })
-  },
-}))
