@@ -4,14 +4,26 @@ import { useQuery } from '@tanstack/react-query'
 import { axiosGeneral as axios } from '@/common/axios'
 import type { ExamListResponse } from '@/interface/student/exam.interface'
 
+// ApiResponse wrapper type matching backend
+interface ApiResponse<T> {
+	success: boolean
+	message?: string
+	error?: string
+	code: number
+	data?: T
+}
+
 export function useGetExams(roomId: string) {
 	return useQuery({
 		queryKey: ['student', 'rooms', roomId, 'exams'],
 		queryFn: async () => {
-			const { data } = await axios.get<ExamListResponse>(
+			const { data } = await axios.get<ApiResponse<ExamListResponse>>(
 				`/user/student/rooms/${roomId}/exams`
 			)
-			return data
+			if (!data.success || !data.data) {
+				throw new Error(data.error || data.message || 'Failed to fetch exams')
+			}
+			return data.data
 		},
 		enabled: !!roomId, // Only fetch if roomId is provided
 		staleTime: 2 * 60 * 1000 // 2 minutes - exams may change
@@ -23,9 +35,17 @@ export function useGetQuestion(roomId: string, questionId: string) {
 		queryKey: ['student', 'rooms', roomId, 'exams', questionId],
 		queryFn: async () => {
 			// First get the exams list to find the question
-			const { data: examsData } = await axios.get<ExamListResponse>(
-				`/user/student/rooms/${roomId}/exams`
-			)
+			const { data: examsResponse } = await axios.get<
+				ApiResponse<ExamListResponse>
+			>(`/user/student/rooms/${roomId}/exams`)
+			if (!examsResponse.success || !examsResponse.data) {
+				throw new Error(
+					examsResponse.error ||
+						examsResponse.message ||
+						'Failed to fetch exams'
+				)
+			}
+			const examsData = examsResponse.data
 			const question = examsData.exams.find(
 				exam => exam.questionId === questionId
 			)

@@ -181,7 +181,19 @@ export const adminService = {
 		const { roomId } = params
 
 		// Get room info
-		const [room] = await db.select().from(rooms).where(eq(rooms.uuid, roomId))
+		const [room] = await db
+			.select({
+				uuid: rooms.uuid,
+				code: rooms.code,
+				name: rooms.name,
+				openTime: rooms.openTime,
+				closeTime: rooms.closeTime,
+				createdBy: rooms.createdBy,
+				createdAt: rooms.createdAt,
+				updatedAt: rooms.updatedAt
+			})
+			.from(rooms)
+			.where(eq(rooms.uuid, roomId))
 
 		if (!room) {
 			set.status = 404
@@ -231,7 +243,19 @@ export const adminService = {
 		const { roomId, studentId } = body as AddStudentToRoomDto
 
 		// Check if room exists
-		const [room] = await db.select().from(rooms).where(eq(rooms.uuid, roomId))
+		const [room] = await db
+			.select({
+				uuid: rooms.uuid,
+				code: rooms.code,
+				name: rooms.name,
+				openTime: rooms.openTime,
+				closeTime: rooms.closeTime,
+				createdBy: rooms.createdBy,
+				createdAt: rooms.createdAt,
+				updatedAt: rooms.updatedAt
+			})
+			.from(rooms)
+			.where(eq(rooms.uuid, roomId))
 
 		if (!room) {
 			set.status = 404
@@ -299,7 +323,19 @@ export const adminService = {
 	getRoomParticipants: async ({ params, user, set }: any) => {
 		const { roomId } = params
 
-		const [room] = await db.select().from(rooms).where(eq(rooms.uuid, roomId))
+		const [room] = await db
+			.select({
+				uuid: rooms.uuid,
+				code: rooms.code,
+				name: rooms.name,
+				openTime: rooms.openTime,
+				closeTime: rooms.closeTime,
+				createdBy: rooms.createdBy,
+				createdAt: rooms.createdAt,
+				updatedAt: rooms.updatedAt
+			})
+			.from(rooms)
+			.where(eq(rooms.uuid, roomId))
 
 		if (!room) {
 			set.status = 404
@@ -349,7 +385,19 @@ export const adminService = {
 	searchRoomParticipants: async ({ params, user, set }: any) => {
 		const { roomId, studentName } = params
 
-		const [room] = await db.select().from(rooms).where(eq(rooms.uuid, roomId))
+		const [room] = await db
+			.select({
+				uuid: rooms.uuid,
+				code: rooms.code,
+				name: rooms.name,
+				openTime: rooms.openTime,
+				closeTime: rooms.closeTime,
+				createdBy: rooms.createdBy,
+				createdAt: rooms.createdAt,
+				updatedAt: rooms.updatedAt
+			})
+			.from(rooms)
+			.where(eq(rooms.uuid, roomId))
 
 		if (!room) {
 			set.status = 404
@@ -398,7 +446,19 @@ export const adminService = {
 	removeStudentFromRoom: async ({ params, user, set }: any) => {
 		const { roomId, studentId } = params
 
-		const [room] = await db.select().from(rooms).where(eq(rooms.uuid, roomId))
+		const [room] = await db
+			.select({
+				uuid: rooms.uuid,
+				code: rooms.code,
+				name: rooms.name,
+				openTime: rooms.openTime,
+				closeTime: rooms.closeTime,
+				createdBy: rooms.createdBy,
+				createdAt: rooms.createdAt,
+				updatedAt: rooms.updatedAt
+			})
+			.from(rooms)
+			.where(eq(rooms.uuid, roomId))
 
 		if (!room) {
 			set.status = 404

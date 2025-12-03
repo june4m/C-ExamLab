@@ -38,7 +38,19 @@ export const questionService = {
 		} = body as CreateQuestionDto
 
 		// Check if room exists
-		const [room] = await db.select().from(rooms).where(eq(rooms.uuid, roomId))
+		const [room] = await db
+			.select({
+				uuid: rooms.uuid,
+				code: rooms.code,
+				name: rooms.name,
+				openTime: rooms.openTime,
+				closeTime: rooms.closeTime,
+				createdBy: rooms.createdBy,
+				createdAt: rooms.createdAt,
+				updatedAt: rooms.updatedAt
+			})
+			.from(rooms)
+			.where(eq(rooms.uuid, roomId))
 
 		if (!room) {
 			set.status = 404
@@ -80,7 +92,19 @@ export const questionService = {
 		const { roomId } = params
 
 		// Check if room exists
-		const [room] = await db.select().from(rooms).where(eq(rooms.uuid, roomId))
+		const [room] = await db
+			.select({
+				uuid: rooms.uuid,
+				code: rooms.code,
+				name: rooms.name,
+				openTime: rooms.openTime,
+				closeTime: rooms.closeTime,
+				createdBy: rooms.createdBy,
+				createdAt: rooms.createdAt,
+				updatedAt: rooms.updatedAt
+			})
+			.from(rooms)
+			.where(eq(rooms.uuid, roomId))
 
 		if (!room) {
 			set.status = 404

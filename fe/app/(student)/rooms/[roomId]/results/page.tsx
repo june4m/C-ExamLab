@@ -1,5 +1,6 @@
 'use client'
 
+import { use } from 'react'
 import { ResultsView } from '@/components/student/ResultsView'
 import { useGetSubmissions } from '@/service/student/submission.service'
 import { useAuthStore } from '@/store/auth.store'
@@ -7,12 +8,13 @@ import { useAuthStore } from '@/store/auth.store'
 export default function RoomResultsPage({
 	params
 }: {
-	params: { roomId: string }
+	params: Promise<{ roomId: string }>
 }) {
 	const { user } = useAuthStore()
 	const studentId = user?.uuid || ''
+	const { roomId } = use(params)
 
-	const { data, isLoading, error } = useGetSubmissions(params.roomId, studentId)
+	const { data, isLoading, error } = useGetSubmissions(roomId, studentId)
 
 	return (
 		<div className="container mx-auto p-4 space-y-6">
@@ -27,7 +29,7 @@ export default function RoomResultsPage({
 				data={data}
 				isLoading={isLoading}
 				error={error}
-				roomId={params.roomId}
+				roomId={roomId}
 			/>
 		</div>
 	)

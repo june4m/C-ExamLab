@@ -1,14 +1,16 @@
 'use client'
 
+import { use } from 'react'
 import { ExamList } from '@/components/student/ExamList'
 import { useGetExams } from '@/service/student/exam.service'
 
 export default function RoomExamsPage({
 	params
 }: {
-	params: { roomId: string }
+	params: Promise<{ roomId: string }>
 }) {
-	const { data, isLoading, error } = useGetExams(params.roomId)
+	const { roomId } = use(params)
+	const { data, isLoading, error } = useGetExams(roomId)
 
 	return (
 		<div className="container mx-auto p-4 space-y-6">
@@ -23,7 +25,7 @@ export default function RoomExamsPage({
 				data={data}
 				isLoading={isLoading}
 				error={error}
-				roomId={params.roomId}
+				roomId={roomId}
 			/>
 		</div>
 	)
