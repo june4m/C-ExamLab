@@ -4,10 +4,6 @@ import type React from 'react'
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-<<<<<<< HEAD
-import { useMutation } from '@tanstack/react-query'
-=======
->>>>>>> 9cf62f544a07cb6c53b1297f7878a607451d40c2
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -19,46 +15,8 @@ import {
 	CardTitle
 } from '@/components/ui/card'
 import { AlertCircle } from 'lucide-react'
-<<<<<<< HEAD
-import { useAuthStore } from '@/store/auth.store'
-import { LoginRequest } from '@/interface'
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || ''
-
-interface AuthResponse {
-	success: boolean
-	data: {
-		user: {
-			uuid: string
-			email: string
-			fullName: string
-			role: string
-		}
-		token: string
-	}
-	message: string
-	code: number
-}
-
-function useLogin() {
-	return useMutation({
-		mutationFn: async (payload: LoginRequest) => {
-			const res = await fetch(`${API_BASE_URL}/auth/login`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(payload)
-			})
-			const json = (await res.json()) as AuthResponse
-			if (!res.ok || !json.success)
-				throw new Error(json.message || 'Login failed')
-			return json
-		}
-	})
-}
-=======
 import { useLogin } from '@/service/login.service'
 import { useAuthStore } from '@/store/auth.store'
->>>>>>> 9cf62f544a07cb6c53b1297f7878a607451d40c2
 
 export function LoginForm() {
 	const router = useRouter()
@@ -70,24 +28,15 @@ export function LoginForm() {
 		general?: string
 	}>({})
 
-<<<<<<< HEAD
-	const { mutate: loginMutation, isPending } = useLogin()
-	const login = useAuthStore(state => state.login)
-=======
 	const { mutate: login, isPending } = useLogin()
 	const loginStore = useAuthStore(state => state.login)
->>>>>>> 9cf62f544a07cb6c53b1297f7878a607451d40c2
 
 	const validate = () => {
 		const newErrors: typeof errors = {}
 		if (!email.trim()) {
 			newErrors.email = 'Email is required'
 		} else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-<<<<<<< HEAD
-			newErrors.email = 'Please enter a valid email'
-=======
 			newErrors.email = 'Please enter a valid email address'
->>>>>>> 9cf62f544a07cb6c53b1297f7878a607451d40c2
 		}
 		if (!password) {
 			newErrors.password = 'Password is required'
@@ -102,31 +51,12 @@ export function LoginForm() {
 		e.preventDefault()
 		if (!validate()) return
 
-<<<<<<< HEAD
-		loginMutation(
-			{ email, password },
-			{
-				onSuccess: data => {
-					login(data.data.token, {
-						uuid: data.data.user.uuid,
-						email: data.data.user.email,
-						fullName: data.data.user.fullName,
-						role: data.data.user.role
-					})
-					// Redirect based on role
-					if (data.data.user.role === 'ADMIN') {
-						router.push('/admin/dashboard')
-					} else {
-						router.push('/dashboard')
-					}
-=======
 		login(
 			{ email, password },
 			{
 				onSuccess: data => {
 					loginStore(data.token, data.user)
 					router.push('/')
->>>>>>> 9cf62f544a07cb6c53b1297f7878a607451d40c2
 				},
 				onError: (error: Error) => {
 					setErrors({
