@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useSyncExternalStore } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuthStore } from '@/store/auth.store'
@@ -10,28 +10,73 @@ interface ProtectedRouteProps {
 	children: React.ReactNode
 	redirectTo?: string
 	fallback?: React.ReactNode
+	requiredRole?: string
+}
+
+// Hook to check if component is hydrated (client-side)
+const emptySubscribe = () => () => {}
+function useIsHydrated() {
+	return useSyncExternalStore(
+		emptySubscribe,
+		() => true,
+		() => false
+	)
 }
 
 /**
  * Component to protect routes - only renders children if user is authenticated
- * @param children - Content to render if authenticated
- * @param redirectTo - Path to redirect to if not authenticated (defaults to '/login')
- * @param fallback - Optional loading/fallback component to show while checking auth
  */
 export function ProtectedRoute({
 	children,
 	redirectTo = '/login',
-	fallback = null
+	fallback = null,
+	requiredRole
 }: ProtectedRouteProps) {
+<<<<<<< HEAD
+	const { isAuthenticated, token, user } = useAuth()
+=======
 	const { isAuthenticated, token } = useAuth()
 	const hasHydrated = useAuthStore(state => state._hasHydrated)
+>>>>>>> origin/main
 	const router = useRouter()
+	const isHydrated = useIsHydrated()
 
 	useEffect(() => {
+<<<<<<< HEAD
+		if (!isHydrated) return
+
+		if (!isAuthenticated || !token) {
+=======
 		// Only redirect after store has hydrated and user is not authenticated
 		if (hasHydrated && (!isAuthenticated || !token)) {
+>>>>>>> origin/main
 			router.push(redirectTo)
+			return
 		}
+<<<<<<< HEAD
+
+		if (requiredRole && user?.role !== requiredRole) {
+			router.push('/dashboard')
+		}
+	}, [
+		isHydrated,
+		isAuthenticated,
+		token,
+		user,
+		router,
+		redirectTo,
+		requiredRole
+	])
+
+	if (!isHydrated) {
+		return (
+			<div className="flex min-h-screen items-center justify-center">
+				<div className="text-muted-foreground">Loading...</div>
+			</div>
+		)
+	}
+
+=======
 	}, [hasHydrated, isAuthenticated, token, router, redirectTo])
 
 	// Show loading state while hydrating
@@ -51,7 +96,12 @@ export function ProtectedRoute({
 	}
 
 	// Show fallback or nothing if not authenticated (after hydration)
+>>>>>>> origin/main
 	if (!isAuthenticated || !token) {
+		return <>{fallback}</>
+	}
+
+	if (requiredRole && user?.role !== requiredRole) {
 		return <>{fallback}</>
 	}
 
