@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useSyncExternalStore } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 
@@ -11,12 +11,18 @@ interface ProtectedRouteProps {
 	requiredRole?: string
 }
 
+// Hook to check if component is hydrated (client-side)
+const emptySubscribe = () => () => {}
+function useIsHydrated() {
+	return useSyncExternalStore(
+		emptySubscribe,
+		() => true,
+		() => false
+	)
+}
+
 /**
  * Component to protect routes - only renders children if user is authenticated
- * @param children - Content to render if authenticated
- * @param redirectTo - Path to redirect to if not authenticated (defaults to '/login')
- * @param fallback - Optional loading/fallback component to show while checking auth
- * @param requiredRole - Optional role required to access the route
  */
 export function ProtectedRoute({
 	children,
@@ -26,26 +32,41 @@ export function ProtectedRoute({
 }: ProtectedRouteProps) {
 	const { isAuthenticated, token, user } = useAuth()
 	const router = useRouter()
+	const isHydrated = useIsHydrated()
 
 	useEffect(() => {
-		// Check authentication status and redirect if not authenticated
+		if (!isHydrated) return
+
 		if (!isAuthenticated || !token) {
 			router.push(redirectTo)
 			return
 		}
 
-		// Check role if required
 		if (requiredRole && user?.role !== requiredRole) {
 			router.push('/dashboard')
 		}
-	}, [isAuthenticated, token, user, router, redirectTo, requiredRole])
+	}, [
+		isHydrated,
+		isAuthenticated,
+		token,
+		user,
+		router,
+		redirectTo,
+		requiredRole
+	])
 
-	// Show fallback or nothing if not authenticated
+	if (!isHydrated) {
+		return (
+			<div className="flex min-h-screen items-center justify-center">
+				<div className="text-muted-foreground">Loading...</div>
+			</div>
+		)
+	}
+
 	if (!isAuthenticated || !token) {
 		return <>{fallback}</>
 	}
 
-	// Show fallback if role doesn't match
 	if (requiredRole && user?.role !== requiredRole) {
 		return <>{fallback}</>
 	}

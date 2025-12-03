@@ -1,52 +1,32 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { create } from 'zustand'
-
-interface AuthState {
-	token: string | null
-	isAuthenticated: boolean
-	setToken: (token: string | null) => void
-	logout: () => void
-}
-
-const useAuthStore = create<AuthState>()(set => ({
-	token:
-		typeof window !== 'undefined' ? localStorage.getItem('auth-token') : null,
-	isAuthenticated:
-		typeof window !== 'undefined'
-			? !!localStorage.getItem('auth-token')
-			: false,
-	setToken: (token: string | null) => {
-		if (typeof window !== 'undefined') {
-			if (token) {
-				localStorage.setItem('auth-token', token)
-			} else {
-				localStorage.removeItem('auth-token')
-			}
-		}
-		set({ token, isAuthenticated: !!token })
-	},
-	logout: () => {
-		if (typeof window !== 'undefined') {
-			localStorage.removeItem('auth-token')
-		}
-		set({ token: null, isAuthenticated: false })
-	}
-}))
+import { useAuthStore } from '@/store/auth.store'
 
 export default function Home() {
 	const router = useRouter()
 	const token = useAuthStore(state => state.token)
+	const user = useAuthStore(state => state.user)
+	const [isHydrated, setIsHydrated] = useState(false)
+
+	// Wait for hydration from localStorage
+	useEffect(() => {
+		setIsHydrated(true)
+	}, [])
 
 	useEffect(() => {
+		// Only redirect after hydration is complete
+		if (!isHydrated) return
+
 		if (!token) {
 			router.push('/login')
+		} else if (user?.role === 'ADMIN') {
+			router.push('/admin/dashboard')
 		} else {
 			router.push('/dashboard')
 		}
-	}, [token, router])
+	}, [isHydrated, token, user, router])
 
 	return (
 		<div className="flex min-h-screen items-center justify-center">

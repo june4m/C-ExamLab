@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import Link from 'next/link'
-import { Plus, Pencil, Trash2, Search, FileCode } from 'lucide-react'
+import { Plus, Pencil, Trash2, Search, Loader2, FileCode } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import {
 	Card,
@@ -49,64 +50,56 @@ import {
 	SelectTrigger,
 	SelectValue
 } from '@/components/ui/select'
+import { useToast } from '@/hooks/use-toast'
+import {
+	useGetAdminQuestions,
+	useCreateQuestion,
+	useUpdateQuestion,
+	type Question
+} from '@/service/admin/question.service'
+import {
+	useGetTestCases,
+	useCreateTestCase
+} from '@/service/admin/testcase.service'
+import { useAuthStore } from '@/store/auth.store'
+import { Switch } from '@/components/ui/switch'
+import { Textarea } from '@/components/ui/textarea'
 
-// Mock data
-const mockRooms = [
-	{ roomId: '001', roomName: 'Lò Luyện Ngục' },
-	{ roomId: '002', roomName: 'Phòng Thi Số 2' },
-	{ roomId: '003', roomName: 'Phòng Thi Số 3' }
-]
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || ''
 
-const mockQuestions = [
-	{
-		questionId: 'q001',
-		title: 'Tính tổng hai số nguyên',
-		code: 'Q001',
-		score: 10,
-		timeLimit: 1000,
-		memoryLimit: 256,
-		order: 1,
-		roomId: '001',
-		roomName: 'Lò Luyện Ngục',
-		testCaseCount: 5
-	},
-	{
-		questionId: 'q002',
-		title: 'Kiểm tra số nguyên tố',
-		code: 'Q002',
-		score: 20,
-		timeLimit: 2000,
-		memoryLimit: 512,
-		order: 2,
-		roomId: '001',
-		roomName: 'Lò Luyện Ngục',
-		testCaseCount: 8
-	},
-	{
-		questionId: 'q003',
-		title: 'Sắp xếp mảng tăng dần',
-		code: 'Q003',
-		score: 30,
-		timeLimit: 3000,
-		memoryLimit: 1024,
-		order: 3,
-		roomId: '002',
-		roomName: 'Phòng Thi Số 2',
-		testCaseCount: 10
-	},
-	{
-		questionId: 'q004',
-		title: 'Tìm số Fibonacci thứ N',
-		code: 'Q004',
-		score: 25,
-		timeLimit: 1500,
-		memoryLimit: 256,
-		order: 1,
-		roomId: '002',
-		roomName: 'Phòng Thi Số 2',
-		testCaseCount: 6
-	}
-]
+interface RoomData {
+	uuid: string
+	code: string
+	name: string
+}
+
+interface RoomsResponse {
+	success: boolean
+	code: number
+	message: string
+	error?: string
+	data: RoomData[]
+}
+
+function useGetRooms() {
+	const token = useAuthStore(state => state.token)
+
+	return useQuery({
+		queryKey: ['admin-rooms'],
+		queryFn: async () => {
+			const res = await fetch(`${API_BASE_URL}/admin/rooms/`, {
+				headers: {
+					Authorization: `Bearer ${token}`
+				}
+			})
+			const json = (await res.json()) as RoomsResponse
+			if (!res.ok || !json.success) {
+				throw new Error(json.message || 'Failed to fetch rooms')
+			}
+			return json.data
+		}
+	})
+}
 
 interface QuestionFormData {
 	title: string
@@ -119,13 +112,40 @@ interface QuestionFormData {
 }
 
 export default function AdminQuestionsPage() {
-	const [questions, setQuestions] = useState(mockQuestions)
+	const { toast } = useToast()
+	const {
+		data: questionsData,
+		isLoading: questionsLoading,
+		error: questionsError
+	} = useGetAdminQuestions()
+	const { data: rooms, isLoading: roomsLoading } = useGetRooms()
+	const createQuestion = useCreateQuestion()
+	const updateQuestion = useUpdateQuestion()
+	const createTestCase = useCreateTestCase()
+
 	const [searchQuery, setSearchQuery] = useState('')
 	const [filterRoom, setFilterRoom] = useState<string>('all')
 	const [isDialogOpen, setIsDialogOpen] = useState(false)
-	const [editingQuestion, setEditingQuestion] = useState<
-		(typeof mockQuestions)[0] | null
-	>(null)
+	const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+	const [isTestCaseDialogOpen, setIsTestCaseDialogOpen] = useState(false)
+	const [editingQuestion, setEditingQuestion] = useState<Question | null>(null)
+	const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(
+		null
+	)
+
+	// Get test cases for selected question
+	const { data: testCasesData, isLoading: testCasesLoading } = useGetTestCases(
+		selectedQuestion?.roomId || '',
+		selectedQuestion?.uuid || ''
+	)
+	const [testCaseFormData, setTestCaseFormData] = useState({
+		testCaseNumber: 1,
+		input: '',
+		expectedOutput: '',
+		isPublic: true,
+		points: 0,
+		description: ''
+	})
 	const [formData, setFormData] = useState<QuestionFormData>({
 		title: '',
 		descriptionPath: '',
@@ -136,60 +156,148 @@ export default function AdminQuestionsPage() {
 		roomId: ''
 	})
 
+	const questions = useMemo(
+		() => questionsData?.data?.listQuestion || [],
+		[questionsData]
+	)
+
+	// Map roomId to room name
+	const roomMap = useMemo(() => {
+		const map: Record<string, string> = {}
+		rooms?.forEach(room => {
+			map[room.uuid] = room.name
+		})
+		return map
+	}, [rooms])
+
 	// Filter questions
-	const filteredQuestions = questions.filter(q => {
-		const matchesSearch =
-			q.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-			q.code.toLowerCase().includes(searchQuery.toLowerCase())
-		const matchesRoom = filterRoom === 'all' || q.roomId === filterRoom
-		return matchesSearch && matchesRoom
-	})
+	const filteredQuestions = useMemo(() => {
+		return questions.filter(q => {
+			const matchesSearch =
+				q.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+				q.code.toLowerCase().includes(searchQuery.toLowerCase())
+			const matchesRoom = filterRoom === 'all' || q.roomId === filterRoom
+			return matchesSearch && matchesRoom
+		})
+	}, [questions, searchQuery, filterRoom])
 
 	const handleCreate = () => {
-		const room = mockRooms.find(r => r.roomId === formData.roomId)
-		const newQuestion = {
-			questionId: `q${Date.now()}`,
-			...formData,
-			code: `Q${String(questions.length + 1).padStart(3, '0')}`,
-			roomName: room?.roomName || '',
-			testCaseCount: 0
+		if (!formData.title || !formData.roomId) {
+			toast({
+				title: 'Lỗi',
+				description: 'Vui lòng điền đầy đủ thông tin bắt buộc',
+				variant: 'destructive'
+			})
+			return
 		}
-		setQuestions([...questions, newQuestion])
-		setIsDialogOpen(false)
-		resetForm()
+
+		createQuestion.mutate(formData, {
+			onSuccess: () => {
+				toast({ title: 'Thành công', description: 'Đã tạo câu hỏi mới' })
+				setIsDialogOpen(false)
+				resetForm()
+			},
+			onError: () => {
+				toast({
+					title: 'Lỗi',
+					description: 'Không thể tạo câu hỏi',
+					variant: 'destructive'
+				})
+			}
+		})
 	}
 
-	const handleUpdate = () => {
-		if (!editingQuestion) return
-		const room = mockRooms.find(r => r.roomId === formData.roomId)
-		setQuestions(
-			questions.map(q =>
-				q.questionId === editingQuestion.questionId
-					? { ...q, ...formData, roomName: room?.roomName || '' }
-					: q
-			)
-		)
-		setIsDialogOpen(false)
-		setEditingQuestion(null)
-		resetForm()
-	}
-
-	const handleDelete = (questionId: string) => {
-		setQuestions(questions.filter(q => q.questionId !== questionId))
-	}
-
-	const openEdit = (question: (typeof mockQuestions)[0]) => {
+	const handleEdit = (question: Question) => {
 		setEditingQuestion(question)
 		setFormData({
 			title: question.title,
-			descriptionPath: '',
+			descriptionPath: question.descriptionPath || '',
 			score: question.score,
 			timeLimit: question.timeLimit,
 			memoryLimit: question.memoryLimit,
 			order: question.order,
 			roomId: question.roomId
 		})
-		setIsDialogOpen(true)
+		setIsEditDialogOpen(true)
+	}
+
+	const handleUpdate = () => {
+		if (!editingQuestion || !formData.title || !formData.roomId) {
+			toast({
+				title: 'Lỗi',
+				description: 'Vui lòng điền đầy đủ thông tin bắt buộc',
+				variant: 'destructive'
+			})
+			return
+		}
+
+		updateQuestion.mutate(
+			{
+				questionId: editingQuestion.uuid,
+				...formData
+			},
+			{
+				onSuccess: () => {
+					toast({ title: 'Thành công', description: 'Đã cập nhật câu hỏi' })
+					setIsEditDialogOpen(false)
+					setEditingQuestion(null)
+					resetForm()
+				},
+				onError: () => {
+					toast({
+						title: 'Lỗi',
+						description: 'Không thể cập nhật câu hỏi',
+						variant: 'destructive'
+					})
+				}
+			}
+		)
+	}
+
+	const handleDelete = (questionId: string) => {
+		// TODO: Implement delete API
+		console.log('Delete question:', questionId)
+	}
+
+	const handleOpenTestCases = (question: Question) => {
+		setSelectedQuestion(question)
+		setIsTestCaseDialogOpen(true)
+	}
+
+	const handleCreateTestCase = () => {
+		if (!selectedQuestion) return
+
+		createTestCase.mutate(
+			{
+				roomId: selectedQuestion.roomId,
+				questionId: selectedQuestion.uuid,
+				...testCaseFormData
+			},
+			{
+				onSuccess: () => {
+					toast({ title: 'Thành công', description: 'Đã tạo test case mới' })
+					resetTestCaseForm()
+				},
+				onError: () => {
+					toast({
+						title: 'Lỗi',
+						description: 'Không thể tạo test case',
+						variant: 'destructive'
+					})
+				}
+			}
+		)
+	}
+
+	const resetTestCaseForm = () => {
+		setTestCaseFormData({
+			testCaseNumber: (testCasesData?.data?.length || 0) + 1,
+			input: '',
+			expectedOutput: '',
+			isPublic: true,
+			points: 0,
+			description: ''
+		})
 	}
 
 	const resetForm = () => {
@@ -204,6 +312,22 @@ export default function AdminQuestionsPage() {
 		})
 	}
 
+	if (questionsLoading || roomsLoading) {
+		return (
+			<div className="flex items-center justify-center py-12">
+				<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+			</div>
+		)
+	}
+
+	if (questionsError) {
+		return (
+			<div className="rounded-md bg-destructive/10 p-4 text-center text-destructive">
+				Không thể tải danh sách câu hỏi
+			</div>
+		)
+	}
+
 	return (
 		<div className="container mx-auto p-6">
 			{/* Header */}
@@ -215,13 +339,10 @@ export default function AdminQuestionsPage() {
 					</p>
 				</div>
 				<Dialog
-					open={isDialogOpen && !editingQuestion}
+					open={isDialogOpen}
 					onOpenChange={open => {
 						setIsDialogOpen(open)
-						if (!open) {
-							setEditingQuestion(null)
-							resetForm()
-						}
+						if (!open) resetForm()
 					}}
 				>
 					<DialogTrigger asChild>
@@ -250,9 +371,9 @@ export default function AdminQuestionsPage() {
 										<SelectValue placeholder="Chọn phòng thi" />
 									</SelectTrigger>
 									<SelectContent>
-										{mockRooms.map(room => (
-											<SelectItem key={room.roomId} value={room.roomId}>
-												{room.roomName}
+										{rooms?.map(room => (
+											<SelectItem key={room.uuid} value={room.uuid}>
+												{room.name}
 											</SelectItem>
 										))}
 									</SelectContent>
@@ -344,8 +465,12 @@ export default function AdminQuestionsPage() {
 							</Button>
 							<Button
 								onClick={handleCreate}
+								disabled={createQuestion.isPending}
 								className="bg-[#40E0D0] hover:bg-[#40E0D0]/90 text-white"
 							>
+								{createQuestion.isPending ? (
+									<Loader2 className="h-4 w-4 animate-spin mr-2" />
+								) : null}
 								Tạo câu hỏi
 							</Button>
 						</DialogFooter>
@@ -372,9 +497,9 @@ export default function AdminQuestionsPage() {
 							</SelectTrigger>
 							<SelectContent>
 								<SelectItem value="all">Tất cả phòng</SelectItem>
-								{mockRooms.map(room => (
-									<SelectItem key={room.roomId} value={room.roomId}>
-										{room.roomName}
+								{rooms?.map(room => (
+									<SelectItem key={room.uuid} value={room.uuid}>
+										{room.name}
 									</SelectItem>
 								))}
 							</SelectContent>
@@ -395,10 +520,10 @@ export default function AdminQuestionsPage() {
 					<Table>
 						<TableHeader>
 							<TableRow>
-								<TableHead className="w-[80px]">Mã</TableHead>
+								<TableHead className="w-20">Mã</TableHead>
 								<TableHead>Tiêu đề</TableHead>
 								<TableHead>Phòng thi</TableHead>
-								<TableHead className="w-[80px]">Điểm</TableHead>
+								<TableHead className="w-20">Điểm</TableHead>
 								<TableHead className="w-[100px]">Time Limit</TableHead>
 								<TableHead className="w-[100px]">Test Cases</TableHead>
 								<TableHead className="w-[120px]">Hành động</TableHead>
@@ -406,7 +531,7 @@ export default function AdminQuestionsPage() {
 						</TableHeader>
 						<TableBody>
 							{filteredQuestions.map(question => (
-								<TableRow key={question.questionId}>
+								<TableRow key={question.uuid}>
 									<TableCell className="font-mono text-sm">
 										{question.code}
 									</TableCell>
@@ -418,7 +543,7 @@ export default function AdminQuestionsPage() {
 											href={`/admin/rooms/${question.roomId}`}
 											className="text-[#40E0D0] hover:underline"
 										>
-											{question.roomName}
+											{roomMap[question.roomId] || question.roomId}
 										</Link>
 									</TableCell>
 									<TableCell>
@@ -428,13 +553,15 @@ export default function AdminQuestionsPage() {
 										{question.timeLimit}ms
 									</TableCell>
 									<TableCell>
-										<Link
-											href={`/admin/rooms/${question.roomId}?tab=questions&q=${question.questionId}`}
-											className="inline-flex items-center gap-1 text-[#40E0D0] hover:underline"
+										<Button
+											variant="ghost"
+											size="sm"
+											className="text-[#40E0D0] hover:text-[#40E0D0]/80"
+											onClick={() => handleOpenTestCases(question)}
 										>
-											<FileCode className="h-4 w-4" />
-											{question.testCaseCount}
-										</Link>
+											<FileCode className="h-4 w-4 mr-1" />
+											Xem
+										</Button>
 									</TableCell>
 									<TableCell>
 										<div className="flex gap-1">
@@ -442,7 +569,7 @@ export default function AdminQuestionsPage() {
 												variant="ghost"
 												size="icon"
 												className="h-8 w-8"
-												onClick={() => openEdit(question)}
+												onClick={() => handleEdit(question)}
 											>
 												<Pencil className="h-4 w-4" />
 											</Button>
@@ -467,7 +594,7 @@ export default function AdminQuestionsPage() {
 													<AlertDialogFooter>
 														<AlertDialogCancel>Hủy</AlertDialogCancel>
 														<AlertDialogAction
-															onClick={() => handleDelete(question.questionId)}
+															onClick={() => handleDelete(question.uuid)}
 															className="bg-destructive hover:bg-destructive/90"
 														>
 															Xóa
@@ -494,11 +621,192 @@ export default function AdminQuestionsPage() {
 				</CardContent>
 			</Card>
 
+			{/* Test Cases Dialog */}
+			<Dialog
+				open={isTestCaseDialogOpen}
+				onOpenChange={open => {
+					setIsTestCaseDialogOpen(open)
+					if (!open) {
+						setSelectedQuestion(null)
+						resetTestCaseForm()
+					}
+				}}
+			>
+				<DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+					<DialogHeader>
+						<DialogTitle>Test Cases - {selectedQuestion?.title}</DialogTitle>
+						<DialogDescription>
+							Quản lý test cases cho câu hỏi này
+						</DialogDescription>
+					</DialogHeader>
+
+					{/* Existing Test Cases */}
+					<div className="space-y-4">
+						<h4 className="font-medium">Danh sách Test Cases</h4>
+						{testCasesLoading ? (
+							<div className="flex justify-center py-4">
+								<Loader2 className="h-6 w-6 animate-spin" />
+							</div>
+						) : testCasesData?.data && testCasesData.data.length > 0 ? (
+							<div className="space-y-2">
+								{testCasesData.data.map((tc, idx) => (
+									<div
+										key={tc.id || idx}
+										className="border rounded-lg p-3 space-y-2"
+									>
+										<div className="flex items-center justify-between">
+											<span className="font-medium">
+												Test Case #{tc.testCaseNumber}
+											</span>
+											<div className="flex items-center gap-2">
+												<Badge variant={tc.isPublic ? 'default' : 'secondary'}>
+													{tc.isPublic ? 'Public' : 'Hidden'}
+												</Badge>
+												<Badge variant="outline">{tc.points} điểm</Badge>
+											</div>
+										</div>
+										{tc.description && (
+											<p className="text-sm text-muted-foreground">
+												{tc.description}
+											</p>
+										)}
+										<div className="grid grid-cols-2 gap-2 text-sm">
+											<div>
+												<span className="text-muted-foreground">Input:</span>
+												<pre className="bg-muted p-2 rounded mt-1 overflow-x-auto">
+													{tc.input || '(empty)'}
+												</pre>
+											</div>
+											<div>
+												<span className="text-muted-foreground">
+													Expected Output:
+												</span>
+												<pre className="bg-muted p-2 rounded mt-1 overflow-x-auto">
+													{tc.expectedOutput || '(empty)'}
+												</pre>
+											</div>
+										</div>
+									</div>
+								))}
+							</div>
+						) : (
+							<p className="text-muted-foreground text-center py-4">
+								Chưa có test case nào
+							</p>
+						)}
+					</div>
+
+					{/* Add New Test Case Form */}
+					<div className="border-t pt-4 mt-4">
+						<h4 className="font-medium mb-4">Thêm Test Case mới</h4>
+						<div className="grid gap-4">
+							<div className="grid grid-cols-3 gap-4">
+								<div className="grid gap-2">
+									<Label>Số thứ tự</Label>
+									<Input
+										type="number"
+										value={testCaseFormData.testCaseNumber}
+										onChange={e =>
+											setTestCaseFormData({
+												...testCaseFormData,
+												testCaseNumber: Number.parseInt(e.target.value) || 1
+											})
+										}
+									/>
+								</div>
+								<div className="grid gap-2">
+									<Label>Điểm</Label>
+									<Input
+										type="number"
+										value={testCaseFormData.points}
+										onChange={e =>
+											setTestCaseFormData({
+												...testCaseFormData,
+												points: Number.parseInt(e.target.value) || 0
+											})
+										}
+									/>
+								</div>
+								<div className="grid gap-2">
+									<Label>Public</Label>
+									<div className="flex items-center h-10">
+										<Switch
+											checked={testCaseFormData.isPublic}
+											onCheckedChange={checked =>
+												setTestCaseFormData({
+													...testCaseFormData,
+													isPublic: checked
+												})
+											}
+										/>
+									</div>
+								</div>
+							</div>
+							<div className="grid gap-2">
+								<Label>Mô tả</Label>
+								<Input
+									value={testCaseFormData.description}
+									onChange={e =>
+										setTestCaseFormData({
+											...testCaseFormData,
+											description: e.target.value
+										})
+									}
+									placeholder="Mô tả test case (tùy chọn)"
+								/>
+							</div>
+							<div className="grid grid-cols-2 gap-4">
+								<div className="grid gap-2">
+									<Label>Input</Label>
+									<Textarea
+										value={testCaseFormData.input}
+										onChange={e =>
+											setTestCaseFormData({
+												...testCaseFormData,
+												input: e.target.value
+											})
+										}
+										placeholder="Nhập input..."
+										rows={4}
+									/>
+								</div>
+								<div className="grid gap-2">
+									<Label>Expected Output</Label>
+									<Textarea
+										value={testCaseFormData.expectedOutput}
+										onChange={e =>
+											setTestCaseFormData({
+												...testCaseFormData,
+												expectedOutput: e.target.value
+											})
+										}
+										placeholder="Nhập expected output..."
+										rows={4}
+									/>
+								</div>
+							</div>
+							<Button
+								onClick={handleCreateTestCase}
+								disabled={createTestCase.isPending}
+								className="bg-[#40E0D0] hover:bg-[#40E0D0]/90 text-white"
+							>
+								{createTestCase.isPending ? (
+									<Loader2 className="h-4 w-4 animate-spin mr-2" />
+								) : (
+									<Plus className="h-4 w-4 mr-2" />
+								)}
+								Thêm Test Case
+							</Button>
+						</div>
+					</div>
+				</DialogContent>
+			</Dialog>
+
 			{/* Edit Dialog */}
 			<Dialog
-				open={isDialogOpen && !!editingQuestion}
+				open={isEditDialogOpen}
 				onOpenChange={open => {
-					setIsDialogOpen(open)
+					setIsEditDialogOpen(open)
 					if (!open) {
 						setEditingQuestion(null)
 						resetForm()
@@ -523,9 +831,9 @@ export default function AdminQuestionsPage() {
 									<SelectValue placeholder="Chọn phòng thi" />
 								</SelectTrigger>
 								<SelectContent>
-									{mockRooms.map(room => (
-										<SelectItem key={room.roomId} value={room.roomId}>
-											{room.roomName}
+									{rooms?.map(room => (
+										<SelectItem key={room.uuid} value={room.uuid}>
+											{room.name}
 										</SelectItem>
 									))}
 								</SelectContent>
@@ -609,13 +917,20 @@ export default function AdminQuestionsPage() {
 						</div>
 					</div>
 					<DialogFooter>
-						<Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+						<Button
+							variant="outline"
+							onClick={() => setIsEditDialogOpen(false)}
+						>
 							Hủy
 						</Button>
 						<Button
 							onClick={handleUpdate}
+							disabled={updateQuestion.isPending}
 							className="bg-[#40E0D0] hover:bg-[#40E0D0]/90 text-white"
 						>
+							{updateQuestion.isPending ? (
+								<Loader2 className="h-4 w-4 animate-spin mr-2" />
+							) : null}
 							Cập nhật
 						</Button>
 					</DialogFooter>

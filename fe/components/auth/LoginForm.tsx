@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/card'
 import { AlertCircle } from 'lucide-react'
 import { useAuthStore } from '@/store/auth.store'
+import { LoginRequest } from '@/interface'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || ''
 
@@ -37,7 +38,7 @@ interface AuthResponse {
 
 function useLogin() {
 	return useMutation({
-		mutationFn: async (payload: { email: string; password: string }) => {
+		mutationFn: async (payload: LoginRequest) => {
 			const res = await fetch(`${API_BASE_URL}/auth/login`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },

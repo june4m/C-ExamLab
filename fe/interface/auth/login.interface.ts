@@ -1,7 +1,7 @@
 // Login service interfaces
 
 export interface LoginRequest {
-	username: string
+	email: string
 	password: string
 }
 
