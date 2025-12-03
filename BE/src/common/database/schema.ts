@@ -106,6 +106,16 @@ export const submissionDetails = mysqlTable('submission_details', {
 	stderr: text('stderr'),
 })
 
+// 8. password_reset_tokens table
+export const passwordResetTokens = mysqlTable('password_reset_tokens', {
+	uuid: char('uuid', { length: 36 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
+	accountUuid: char('account_uuid', { length: 36 }).notNull().references(() => accounts.uuid),
+	token: varchar('token', { length: 100 }).notNull().unique(),
+	expiresAt: datetime('expires_at', { fsp: 6 }).notNull(),
+	usedAt: datetime('used_at', { fsp: 6 }),
+	createdAt: datetime('created_at', { fsp: 6 }).default(sql`CURRENT_TIMESTAMP(6)`),
+})
+
 // Relations
 export const accountsRelations = relations(accounts, ({ many }) => ({
 	createdRooms: many(rooms),

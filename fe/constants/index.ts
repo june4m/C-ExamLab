@@ -20,4 +20,3 @@ export const QUERY_KEYS = {
   COMPILE: (code: string) => ["compile", code] as const,
   // Add more query keys here
 } as const
-

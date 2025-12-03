@@ -9,19 +9,21 @@ export const axiosGeneral = axios.create({
   },
 })
 
-// Request interceptor
+// Request interceptor - dynamically import auth store to avoid circular dependency
 axiosGeneral.interceptors.request.use(
-  (config) => {
-    // Add auth token or other headers here if needed
-    // const token = getToken()
-    // if (token) {
-    //   config.headers.Authorization = `Bearer ${token}`
-    // }
+  async (config) => {
+    if (typeof window !== "undefined") {
+      const { useAuthStore } = await import("@/store/auth.store")
+      const token = useAuthStore.getState().token
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`
+      }
+    }
     return config
   },
   (error) => {
     return Promise.reject(error)
-  }
+  },
 )
 
 // Response interceptor
@@ -29,11 +31,14 @@ axiosGeneral.interceptors.response.use(
   (response) => {
     return response
   },
-  (error) => {
-    // Handle errors globally here if needed
-    // if (error.response?.status === 401) {
-    //   // Handle unauthorized
-    // }
+  async (error) => {
+    if (error.response?.status === 401) {
+      if (typeof window !== "undefined") {
+        const { useAuthStore } = await import("@/store/auth.store")
+        useAuthStore.getState().logout()
+        window.location.href = "/login"
+      }
+    }
     return Promise.reject(error)
-  }
+  },
 )

@@ -51,4 +51,3 @@ export function CodeEditor({ value, onChange, height = "600px" }: CodeEditorProp
     </Card>
   )
 }
-

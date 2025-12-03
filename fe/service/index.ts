@@ -1,2 +1,3 @@
-// Export all services
-export * from "./login.service"
+export { useLogin } from "./login.service"
+export { useRegister } from "./register.service"
+export { useLogout } from "./logout.service"

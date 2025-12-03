@@ -1,23 +1,26 @@
-"use client"
-
 import { useMutation } from "@tanstack/react-query"
-import { axiosGeneral as axios } from "@/common/axios"
-import type {
-  LoginResponse,
-  LoginRequest,
-} from "@/interface/auth/login.interface"
+
+interface LoginRequest {
+  username: string
+  password: string
+}
+
+interface LoginResponse {
+  accesstoken: string
+}
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || ""
 
 export function useLogin() {
   return useMutation({
-    mutationFn: async (payload: LoginRequest) => {
-      const { data } = await axios.post<LoginResponse>("/auth/login", payload)
-      return data
-    },
-    onSuccess: (data) => {
-      console.log("Login successful:", data.message)
-    },
-    onError: (error: Error) => {
-      console.error("Login failed:", error.message)
+    mutationFn: async (payload: LoginRequest): Promise<LoginResponse> => {
+      const res = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+      if (!res.ok) throw new Error("Login failed")
+      return res.json()
     },
   })
 }

@@ -1,8 +1,18 @@
 import Elysia, { t } from 'elysia'
 import { authService } from './service'
-import { LoginSchema, RegisterSchema, AuthResponseSchema } from './model'
+import {
+	LoginSchema,
+	RegisterSchema,
+	AuthResponseSchema,
+	RefreshTokenResponseSchema,
+	ForgotPasswordSchema,
+	ForgotPasswordResponseSchema,
+	ResetPasswordSchema,
+	ResetPasswordResponseSchema
+} from './model'
 import { ApiResponseSchema } from '../../common/dtos/response'
 import { COOKIE_OPTIONS } from '../../common/utils/cookie.utils'
+import { requireAuth } from '../../middlewares/requireAuth'
 
 export const auth = new Elysia({ prefix: '/auth', tags: ['Auth'] })
 	.post('/login', authService.login, {
@@ -11,6 +21,7 @@ export const auth = new Elysia({ prefix: '/auth', tags: ['Auth'] })
 		response: {
 			200: ApiResponseSchema(AuthResponseSchema),
 			401: ApiResponseSchema(t.Null()),
+			403: ApiResponseSchema(t.Null()),
 			500: ApiResponseSchema(t.Null())
 		}
 	})
@@ -31,6 +42,28 @@ export const auth = new Elysia({ prefix: '/auth', tags: ['Auth'] })
 			500: ApiResponseSchema(t.Null())
 		}
 	})
-	.post('/refresh-token', authService.refreshToken)
-	.post('/forgot-password', authService.forgotPassword)
-	.post('/reset-password', authService.resetPassword)
+	.post('/forgot-password', authService.forgotPassword, {
+		body: ForgotPasswordSchema,
+		response: {
+			200: ApiResponseSchema(ForgotPasswordResponseSchema),
+			500: ApiResponseSchema(t.Null())
+		}
+	})
+	.post('/reset-password', authService.resetPassword, {
+		body: ResetPasswordSchema,
+		response: {
+			200: ApiResponseSchema(ResetPasswordResponseSchema),
+			400: ApiResponseSchema(t.Null()),
+			500: ApiResponseSchema(t.Null())
+		}
+	})
+	.use(requireAuth)
+	.post('/refresh-token', authService.refreshToken, {
+		cookie: t.Cookie({ auth: t.Optional(t.String()) }, COOKIE_OPTIONS),
+		response: {
+			200: ApiResponseSchema(RefreshTokenResponseSchema),
+			401: ApiResponseSchema(t.Null()),
+			403: ApiResponseSchema(t.Null()),
+			500: ApiResponseSchema(t.Null())
+		}
+	})

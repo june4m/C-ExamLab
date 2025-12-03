@@ -61,4 +61,3 @@ export function OutputPanel({ output, error, isLoading }: OutputPanelProps) {
     </Card>
   )
 }
-

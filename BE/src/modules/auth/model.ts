@@ -26,3 +26,38 @@ export const AuthResponseSchema = t.Object({
 })
 
 export type AuthResponse = typeof AuthResponseSchema.static
+
+// Refresh token schema
+export const RefreshTokenResponseSchema = t.Object({
+	token: t.String()
+})
+
+export type RefreshTokenResponse = typeof RefreshTokenResponseSchema.static
+
+// Forgot password schema
+export const ForgotPasswordSchema = t.Object({
+	email: t.String({ format: 'email' })
+})
+
+export type ForgotPasswordDto = typeof ForgotPasswordSchema.static
+
+export const ForgotPasswordResponseSchema = t.Object({
+	message: t.String(),
+	resetToken: t.Optional(t.String()) // Only in dev mode
+})
+
+export type ForgotPasswordResponse = typeof ForgotPasswordResponseSchema.static
+
+// Reset password schema
+export const ResetPasswordSchema = t.Object({
+	token: t.String(),
+	newPassword: t.String({ minLength: 6 })
+})
+
+export type ResetPasswordDto = typeof ResetPasswordSchema.static
+
+export const ResetPasswordResponseSchema = t.Object({
+	message: t.String()
+})
+
+export type ResetPasswordResponse = typeof ResetPasswordResponseSchema.static
