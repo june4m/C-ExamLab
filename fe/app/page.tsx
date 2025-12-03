@@ -2,39 +2,7 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { create } from 'zustand'
-
-interface AuthState {
-	token: string | null
-	isAuthenticated: boolean
-	setToken: (token: string | null) => void
-	logout: () => void
-}
-
-const useAuthStore = create<AuthState>()(set => ({
-	token:
-		typeof window !== 'undefined' ? localStorage.getItem('auth-token') : null,
-	isAuthenticated:
-		typeof window !== 'undefined'
-			? !!localStorage.getItem('auth-token')
-			: false,
-	setToken: (token: string | null) => {
-		if (typeof window !== 'undefined') {
-			if (token) {
-				localStorage.setItem('auth-token', token)
-			} else {
-				localStorage.removeItem('auth-token')
-			}
-		}
-		set({ token, isAuthenticated: !!token })
-	},
-	logout: () => {
-		if (typeof window !== 'undefined') {
-			localStorage.removeItem('auth-token')
-		}
-		set({ token: null, isAuthenticated: false })
-	}
-}))
+import { useAuthStore } from '@/store/auth.store'
 
 export default function Home() {
 	const router = useRouter()

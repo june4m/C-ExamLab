@@ -9,18 +9,30 @@ import type {
 	GetSubmissionsResponse
 } from '@/interface/student/submission.interface'
 
+// ApiResponse wrapper type matching backend
+interface ApiResponse<T> {
+	success: boolean
+	message?: string
+	error?: string
+	code: number
+	data?: T
+}
+
 export function useSubmitAnswer() {
 	return useMutation({
 		mutationFn: async (
 			request: SubmitAnswerRequest
 		): Promise<SubmitAnswerResponse> => {
-			const { data } = await axios.post<SubmitAnswerResponse>(
-				'/student/questions/submission',
+			const { data } = await axios.post<ApiResponse<SubmitAnswerResponse>>(
+				'/user/student/questions/submission',
 				request
 			)
-			return data
+			if (!data.success || !data.data) {
+				throw new Error(data.error || data.message || 'Failed to submit answer')
+			}
+			return data.data
 		},
-		onError: (error) => {
+		onError: error => {
 			console.error('Submit answer error:', error)
 		}
 	})
@@ -35,16 +47,17 @@ export function useGetSubmissions(roomId: string, studentId: string) {
 				studentId
 			}
 			// Note: API has typo "submissiones" instead of "submissions"
-			const { data } = await axios.post<GetSubmissionsResponse>(
-				'/student/rooms/submissiones',
+			const { data } = await axios.post<ApiResponse<GetSubmissionsResponse>>(
+				'/user/student/rooms/submissiones',
 				request
 			)
-			return data
+			if (!data.success || !data.data) {
+				throw new Error(
+					data.error || data.message || 'Failed to fetch submissions'
+				)
+			}
+			return data.data
 		},
-		enabled: !!roomId && !!studentId,
-		onError: (error) => {
-			console.error('Get submissions error:', error)
-		}
+		enabled: !!roomId && !!studentId
 	})
 }
-

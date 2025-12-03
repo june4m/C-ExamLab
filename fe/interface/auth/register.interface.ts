@@ -3,9 +3,22 @@
 export interface RegisterRequest {
 	email: string
 	password: string
-	fullName: string
+	fullName?: string
 }
 
 export interface RegisterResponse {
-	accesstoken: string
+	user: {
+		uuid: string
+		email: string
+		fullName: string | null
+	}
+	token: string
+}
+
+export interface ApiResponse<T> {
+	success: boolean
+	message?: string
+	error?: string
+	code: number
+	data?: T
 }
