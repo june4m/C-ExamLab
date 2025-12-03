@@ -27,3 +27,65 @@ export const BanResponseSchema = t.Object({
 })
 
 export type BanResponse = typeof BanResponseSchema.static
+
+// Schema for leaderboard student (simplified)
+export const LeaderboardStudentSchema = t.Object({
+	studentId: t.String(),
+	studentFullName: t.Union([t.String(), t.Null()]),
+	studentEmail: t.String()
+})
+
+export type LeaderboardStudent = typeof LeaderboardStudentSchema.static
+
+// Schema for leaderboard response
+export const LeaderboardResponseSchema = t.Object({
+	roomName: t.String(),
+	openTime: t.Union([t.String(), t.Null()]),
+	closeTime: t.Union([t.String(), t.Null()]),
+	createdAt: t.Union([t.String(), t.Null()]),
+	students: t.Array(LeaderboardStudentSchema)
+})
+
+export type LeaderboardResponse = typeof LeaderboardResponseSchema.static
+
+// Schema for add student to room request
+export const AddStudentToRoomSchema = t.Object({
+	roomId: t.String(),
+	studentId: t.String()
+})
+
+export type AddStudentToRoomDto = typeof AddStudentToRoomSchema.static
+
+// Schema for add student to room response
+export const AddStudentToRoomResponseSchema = t.Object({
+	message: t.String()
+})
+
+export type AddStudentToRoomResponse = typeof AddStudentToRoomResponseSchema.static
+
+// Schema for room participant
+export const RoomParticipantSchema = t.Object({
+	participantId: t.String(),
+	studentId: t.String(),
+	studentFullName: t.Union([t.String(), t.Null()]),
+	studentEmail: t.String(),
+	joinedAt: t.Union([t.String(), t.Null()])
+})
+
+export type RoomParticipant = typeof RoomParticipantSchema.static
+
+// Schema for room participants list response
+export const RoomParticipantsListSchema = t.Object({
+	roomId: t.String(),
+	roomName: t.String(),
+	participants: t.Array(RoomParticipantSchema)
+})
+
+export type RoomParticipantsList = typeof RoomParticipantsListSchema.static
+
+// Schema for remove student from room response
+export const RemoveStudentResponseSchema = t.Object({
+	message: t.String()
+})
+
+export type RemoveStudentResponse = typeof RemoveStudentResponseSchema.static
