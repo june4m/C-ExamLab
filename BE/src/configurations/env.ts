@@ -28,3 +28,10 @@ export const JWT_SECRET = getEnvVarOptional(
 	'your-secret-key-change-in-production'
 )
 export const JWT_EXPIRES_IN = getEnvVarOptional('JWT_EXPIRES_IN', '7d')
+
+// SMTP config
+export const SMTP_HOST = getEnvVarOptional('SMTP_HOST', '')
+export const SMTP_PORT = getEnvVarOptional('SMTP_PORT', '587')
+export const SMTP_USER = getEnvVarOptional('SMTP_USER', '')
+export const SMTP_PASS = getEnvVarOptional('SMTP_PASS', '')
+export const SMTP_FROM = getEnvVarOptional('SMTP_FROM', 'ExamLab <noreply@examlab.com>')
