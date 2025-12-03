@@ -36,7 +36,12 @@ export function ProtectedRoute({
 
 		// Redirect if role doesn't match
 		if (hasHydrated && requiredRole && user?.role !== requiredRole) {
-			router.push('/')
+			// Redirect to appropriate dashboard based on actual role
+			if (user?.role === 'ADMIN') {
+				router.push('/admin')
+			} else {
+				router.push('/dashboard')
+			}
 			return
 		}
 	}, [
