@@ -27,114 +27,152 @@ import {
 	ValidationError
 } from './validation'
 import { compilerRateLimiter, RateLimitError } from './rate-limiter'
+import {
+	CompilerErrorCode,
+	detectErrorCode,
+	createErrorMessage
+} from './error-codes'
 
 type OptimizationLevel = 0 | 1 | 2 | 3 | 's'
 
 export class CompilerService {
-	private containerName = CompilerConfig.CONTAINER_NAME
+	private containers: string[] = []
 	private containerReady = false
 	private activeCompilations = new Set<string>()
+	private currentContainerIndex = 0
+
+	/**
+	 * Get next container in round-robin fashion
+	 */
+	private getNextContainer(): string {
+		if (this.containers.length === 0) {
+			throw new Error('No containers available. Ensure containers are started.')
+		}
+		const container = this.containers[this.currentContainerIndex]
+		this.currentContainerIndex =
+			(this.currentContainerIndex + 1) % this.containers.length
+		return container
+	}
 
 	/**
 	 * Build GCC compilation flags with optimization level
 	 */
 	private buildGccFlags(optimizationLevel: OptimizationLevel = 0): string {
 		const optFlag = `-O${optimizationLevel}`
-		return `${optFlag} -std=c11 -Wall -Wextra`
+		return `${optFlag} -std=c11`
 	}
 
 	private async ensureContainer(): Promise<void> {
 		if (this.containerReady) return
 
-		try {
-			// Check if container exists and is running
-			const { stdout } = await this.executeCommand('docker', [
-				'inspect',
-				'-f',
-				'{{.State.Running}}',
-				this.containerName
-			])
-
-			if (stdout.trim() === 'true') {
-				this.containerReady = true
-				return
-			}
-
-			// Remove old container if exists but not running
-			await this.executeCommand('docker', [
-				'rm',
-				'-f',
-				this.containerName
-			]).catch(error => {
-				console.warn(
-					'[CompilerService] Failed to remove old container:',
-					error.message
-				)
-			})
-		} catch (error) {
-			// Container doesn't exist - this is fine
-			console.log(
-				'[CompilerService] Container does not exist, will create new one'
-			)
-		}
-
-		// Pull image if needed
-		await this.ensureDockerImage()
-
-		// Create and start persistent container with enhanced security
-		await this.executeCommand(
-			'docker',
-			[
-				'run',
-				'-d',
-				'--name',
-				this.containerName,
-				'--network',
-				'none',
-				'--cpus',
-				CompilerConfig.CONTAINER_CPUS,
-				'--memory',
-				`${CompilerConfig.CONTAINER_MEMORY_MB}m`,
-				'--memory-swap',
-				`${CompilerConfig.CONTAINER_MEMORY_MB}m`,
-				'--pids-limit',
-				`${CompilerConfig.CONTAINER_PIDS_LIMIT}`,
-				'--security-opt',
-				'no-new-privileges',
-				'--cap-drop',
-				'ALL',
-				'--read-only',
-				'--tmpfs',
-				'/workspace:rw,noexec,nosuid,size=100m',
-				'-w',
-				'/workspace',
-				DOCKER_IMAGE,
-				'sleep',
-				'infinity'
-			],
-			undefined,
-			30000
+		console.log(
+			`[CompilerService] Starting ${CompilerConfig.CONTAINER_POOL_SIZE} compiler containers...`
 		)
 
+		// Start container pool
+		for (let i = 0; i < CompilerConfig.CONTAINER_POOL_SIZE; i++) {
+			const containerName = `${CompilerConfig.CONTAINER_NAME_PREFIX}_${i}`
+			this.containers.push(containerName)
+
+			try {
+				// Check if container exists and is running
+				const { stdout } = await this.executeCommand('docker', [
+					'inspect',
+					'-f',
+					'{{.State.Running}}',
+					containerName
+				]).catch(() => ({ stdout: 'false' }))
+
+				if (stdout.trim() === 'true') {
+					console.log(
+						`[CompilerService] ✓ Container ${containerName} already running`
+					)
+					continue
+				}
+
+				// Remove old container if exists
+				await this.executeCommand('docker', ['rm', '-f', containerName]).catch(
+					() => {}
+				)
+
+				// Ensure image exists
+				await this.ensureDockerImage()
+
+				// Create and start container
+				await this.executeCommand(
+					'docker',
+					[
+						'run',
+						'-d',
+						'--name',
+						containerName,
+						'--network',
+						'none',
+						'--cpus',
+						CompilerConfig.CONTAINER_CPUS,
+						'--memory',
+						`${CompilerConfig.CONTAINER_MEMORY_MB}m`,
+						'--memory-swap',
+						`${CompilerConfig.CONTAINER_MEMORY_MB}m`,
+						'--pids-limit',
+						`${CompilerConfig.CONTAINER_PIDS_LIMIT}`,
+						'--security-opt',
+						'no-new-privileges',
+						'--cap-drop',
+						'ALL',
+						'--read-only',
+						'--tmpfs',
+						'/workspace:rw,nodev,size=100m,exec',
+						'-w',
+						'/workspace',
+						DOCKER_IMAGE,
+						'sleep',
+						'infinity'
+					],
+					undefined,
+					30000
+				)
+
+				console.log(`[CompilerService] ✓ Container ${containerName} started`)
+			} catch (error) {
+				const errorMessage =
+					error instanceof Error ? error.message : String(error)
+				console.error(
+					`[CompilerService] Failed to start container ${containerName}:`,
+					sanitizeErrorMessage(errorMessage)
+				)
+				throw error
+			}
+		}
+
 		this.containerReady = true
-		console.log('✓ Persistent compiler container started')
+		console.log(
+			`[CompilerService] ✓ All ${CompilerConfig.CONTAINER_POOL_SIZE} containers ready`
+		)
 	}
 
 	async stopContainer(): Promise<void> {
 		if (!this.containerReady) return
 
-		try {
-			await this.executeCommand('docker', ['rm', '-f', this.containerName])
-			this.containerReady = false
-			console.log('[CompilerService] ✓ Compiler container stopped')
-		} catch (error) {
-			const errorMessage =
-				error instanceof Error ? error.message : String(error)
-			console.error(
-				'[CompilerService] Failed to stop container:',
-				sanitizeErrorMessage(errorMessage)
-			)
+		console.log('[CompilerService] Stopping all containers...')
+
+		for (const containerName of this.containers) {
+			try {
+				await this.executeCommand('docker', ['rm', '-f', containerName])
+				console.log(`[CompilerService] ✓ Container ${containerName} stopped`)
+			} catch (error) {
+				const errorMessage =
+					error instanceof Error ? error.message : String(error)
+				console.error(
+					`[CompilerService] Failed to stop container ${containerName}:`,
+					sanitizeErrorMessage(errorMessage)
+				)
+			}
 		}
+
+		this.containerReady = false
+		this.containers = []
+		console.log('[CompilerService] ✓ All containers stopped')
 	}
 	private async createTempFile(
 		code: string,
@@ -271,6 +309,7 @@ export class CompilerService {
 	 * Uses base64 to safely handle any special characters in code
 	 */
 	private async writeAndCompile(
+		container: string,
 		code: string,
 		sourceFileName: string,
 		executableFileName: string,
@@ -283,19 +322,19 @@ export class CompilerService {
 			const encodedCode = Buffer.from(code, 'utf-8').toString('base64')
 			const gccFlags = this.buildGccFlags(optimizationLevel)
 
-			// Combine write + compile in one docker exec to reduce overhead
+			// Combine write + compile in one docker exec - gcc output is already executable
 			const compileResult = await this.executeCommand(
 				'docker',
 				[
 					'exec',
 					'-i',
-					this.containerName,
+					container,
 					'sh',
 					'-c',
 					`base64 -d > ${sourceFileName} && gcc ${sourceFileName} -o ${executableFileName} ${gccFlags} 2>&1`
 				],
 				encodedCode,
-				15000
+				10000
 			)
 
 			const compilationTime = Date.now() - compileStart
@@ -319,6 +358,7 @@ export class CompilerService {
 	}
 
 	private async compileOnly(
+		container: string,
 		code: string,
 		sourceFileName: string,
 		executableFileName: string,
@@ -326,6 +366,7 @@ export class CompilerService {
 	): Promise<{ success: boolean; error?: string; compilationTime?: number }> {
 		// Reuse writeAndCompile for consistency
 		return this.writeAndCompile(
+			container,
 			code,
 			sourceFileName,
 			executableFileName,
@@ -336,7 +377,8 @@ export class CompilerService {
 	private async runOnly(
 		executableFileName: string,
 		input: string,
-		timeLimit: number
+		timeLimit: number,
+		container: string
 	): Promise<{ stdout: string; stderr: string; executionTime: number }> {
 		const startTime = Date.now()
 
@@ -345,7 +387,7 @@ export class CompilerService {
 			[
 				'exec',
 				'-i',
-				this.containerName,
+				container,
 				'timeout',
 				`${Math.ceil(timeLimit / 1000)}s`,
 				'sh',
@@ -353,7 +395,7 @@ export class CompilerService {
 				`./${executableFileName}`
 			],
 			input,
-			timeLimit + 2000
+			timeLimit + 1500
 		)
 
 		return {
@@ -373,9 +415,17 @@ export class CompilerService {
 			compilerRateLimiter.checkLimit(identifier)
 		} catch (error) {
 			if (error instanceof ValidationError || error instanceof RateLimitError) {
+				const errorCode =
+					error instanceof RateLimitError
+						? CompilerErrorCode.RATE_LIMIT_EXCEEDED
+						: CompilerErrorCode.INVALID_CODE
+				const errorInfo = createErrorMessage(errorCode, error.message)
+
 				return {
 					success: false,
-					error: error.message
+					error: errorInfo.message,
+					errorCode: errorInfo.code,
+					errorDetails: errorInfo.details
 				}
 			}
 			throw error
@@ -385,9 +435,11 @@ export class CompilerService {
 		if (
 			this.activeCompilations.size >= CompilerConfig.MAX_CONCURRENT_COMPILATIONS
 		) {
+			const errorInfo = createErrorMessage(CompilerErrorCode.SERVER_BUSY)
 			return {
 				success: false,
-				error: 'Server is busy. Please try again in a moment.'
+				error: errorInfo.message,
+				errorCode: errorInfo.code
 			}
 		}
 
@@ -401,7 +453,12 @@ export class CompilerService {
 		this.activeCompilations.add(workspaceId)
 
 		try {
+			// Ensure containers are ready first
 			await this.ensureContainer()
+
+			// Get container for this compilation
+			const container = this.getNextContainer()
+
 			const startTime = Date.now()
 
 			// Encode code to base64 to avoid shell escaping issues
@@ -417,9 +474,9 @@ export class CompilerService {
 			const compileStart = Date.now()
 			const result = await this.executeCommand(
 				'docker',
-				['exec', '-i', this.containerName, 'sh', '-c', script],
+				['exec', '-i', container, 'sh', '-c', script],
 				request.input || '',
-				timeLimit + 5000
+				timeLimit + 3000
 			)
 
 			const executionTime = Date.now() - startTime
@@ -429,43 +486,55 @@ export class CompilerService {
 			// Async cleanup - don't wait for it
 			this.executeCommand(
 				'docker',
-				[
-					'exec',
-					this.containerName,
-					'rm',
-					'-f',
-					sourceFileName,
-					executableFileName
-				],
+				['exec', container, 'rm', '-f', sourceFileName, executableFileName],
 				undefined,
-				CompilerConfig.CLEANUP_TIMEOUT
-			).catch(error => {
-				console.warn(
-					'[CompilerService] Cleanup warning:',
-					sanitizeErrorMessage(error.message)
-				)
-			})
+				1500
+			).catch(() => {})
 
-			// Check for compilation errors
-			if (!output.includes(CompilerConfig.COMPILE_SUCCESS_MARKER)) {
+			// Check for compilation errors - use indexOf for faster check
+			const markerPos = output.indexOf(CompilerConfig.COMPILE_SUCCESS_MARKER)
+			if (markerPos === -1) {
 				// Compilation failed - output contains compile errors
-				const compileError = sanitizeErrorMessage(
-					output || stderr || 'Compilation failed'
-				)
+				const compileError = output || stderr || 'Compilation failed'
 				const compilationTime = Date.now() - compileStart
+				const errorCode = detectErrorCode(compileError)
+				const errorInfo = createErrorMessage(errorCode, compileError)
 
 				return {
 					success: false,
-					compilationError: compileError,
+					error: errorInfo.message,
+					errorCode: errorInfo.code,
+					errorDetails: errorInfo.details,
 					compilationTime,
 					executionTime: compilationTime
 				}
 			}
 
-			// Extract program output (after compile marker)
-			const parts = output.split(CompilerConfig.COMPILE_SUCCESS_MARKER)
-			const programOutput = parts[1]?.trim() || ''
+			// Extract program output (after compile marker) - use substring for speed
+			const programOutput = output
+				.substring(markerPos + CompilerConfig.COMPILE_SUCCESS_MARKER.length)
+				.trim()
 			const compilationTime = Date.now() - compileStart
+
+			// Check for runtime errors in output
+			if (
+				programOutput.includes('Segmentation fault') ||
+				programOutput.includes('Floating point exception') ||
+				programOutput.includes('dumped core') ||
+				stderr.includes('killed')
+			) {
+				const errorCode = detectErrorCode(programOutput + ' ' + stderr)
+				const errorInfo = createErrorMessage(errorCode, programOutput)
+
+				return {
+					success: false,
+					error: errorInfo.message,
+					errorCode: errorInfo.code,
+					errorDetails: errorInfo.details,
+					compilationTime,
+					executionTime
+				}
+			}
 
 			return {
 				success: true,
@@ -474,25 +543,13 @@ export class CompilerService {
 				executionTime
 			}
 		} catch (error) {
-			// Cleanup on error
+			// Cleanup on error - async, don't wait
 			this.executeCommand(
 				'docker',
-				[
-					'exec',
-					this.containerName,
-					'rm',
-					'-f',
-					sourceFileName,
-					executableFileName
-				],
+				['exec', container, 'rm', '-f', sourceFileName, executableFileName],
 				undefined,
-				CompilerConfig.CLEANUP_TIMEOUT
-			).catch(cleanupError => {
-				console.warn(
-					'[CompilerService] Cleanup failed:',
-					sanitizeErrorMessage(cleanupError.message)
-				)
-			})
+				1500
+			).catch(() => {})
 
 			const errorMessage =
 				error instanceof Error ? error.message : 'Unknown error'
@@ -501,9 +558,14 @@ export class CompilerService {
 				sanitizeErrorMessage(errorMessage)
 			)
 
+			const errorCode = detectErrorCode(errorMessage)
+			const errorInfo = createErrorMessage(errorCode, errorMessage)
+
 			return {
 				success: false,
-				error: sanitizeErrorMessage(errorMessage)
+				error: errorInfo.message,
+				errorCode: errorInfo.code,
+				errorDetails: errorInfo.details
 			}
 		} finally {
 			// Always remove from active compilations
@@ -572,11 +634,16 @@ export class CompilerService {
 		this.activeCompilations.add(workspaceId)
 
 		try {
+			// Ensure containers are ready first
 			await this.ensureContainer()
+
+			// Get container for this judge session
+			const container = this.getNextContainer()
 
 			// 1) Compile once with specified optimization level
 			const optimizationLevel = request.optimizationLevel ?? 0
 			const compileResult = await this.compileOnly(
+				container,
 				request.code,
 				sourceFileName,
 				executableFileName,
@@ -601,7 +668,7 @@ export class CompilerService {
 				// Cleanup
 				await this.executeCommand(
 					'docker',
-					['exec', this.containerName, 'rm', '-f', sourceFileName],
+					['exec', container, 'rm', '-f', sourceFileName],
 					undefined,
 					CompilerConfig.CLEANUP_TIMEOUT
 				).catch(error => {
@@ -638,7 +705,8 @@ export class CompilerService {
 					const runResult = await this.runOnly(
 						executableFileName,
 						testCase.input,
-						timeLimit
+						timeLimit,
+						container
 					)
 
 					testResult.executionTime = runResult.executionTime
@@ -670,45 +738,21 @@ export class CompilerService {
 				results.push(testResult)
 			}
 
-			// 3) Cleanup
-			await this.executeCommand(
+			// 3) Cleanup - async, don't wait
+			this.executeCommand(
 				'docker',
-				[
-					'exec',
-					this.containerName,
-					'rm',
-					'-f',
-					sourceFileName,
-					executableFileName
-				],
+				['exec', container, 'rm', '-f', sourceFileName, executableFileName],
 				undefined,
-				CompilerConfig.CLEANUP_TIMEOUT
-			).catch(error => {
-				console.warn(
-					'[CompilerService] Cleanup warning:',
-					sanitizeErrorMessage(error.message)
-				)
-			})
+				1500
+			).catch(() => {})
 		} catch (error) {
-			// Cleanup on error
-			await this.executeCommand(
+			// Cleanup on error - async, don't wait
+			this.executeCommand(
 				'docker',
-				[
-					'exec',
-					this.containerName,
-					'rm',
-					'-f',
-					sourceFileName,
-					executableFileName
-				],
+				['exec', container, 'rm', '-f', sourceFileName, executableFileName],
 				undefined,
-				CompilerConfig.CLEANUP_TIMEOUT
-			).catch(cleanupError => {
-				console.warn(
-					'[CompilerService] Cleanup failed:',
-					sanitizeErrorMessage(cleanupError.message)
-				)
-			})
+				1500
+			).catch(() => {})
 
 			const errorMessage =
 				error instanceof Error ? error.message : 'Unknown error'
