@@ -7,6 +7,7 @@ import { compiler } from './modules/compiler'
 import { testcase } from './modules/testcase'
 import { room } from './modules/room'
 import { admin } from './modules/admin'
+import { question } from './modules/question'
 
 const app = new Elysia()
 	.get('/ping', 'pong')
@@ -18,7 +19,8 @@ const app = new Elysia()
 	.use(testcase)
 	.use(room)
 	.use(admin)
-	.listen(3000, () => {
-		console.log('🚀 Server running: http://localhost:3000')
-		console.log('📘 Swagger docs: http://localhost:3000/swagger')
+	.use(question)
+	.listen(5000, () => {
+		console.log('🚀 Server running: http://localhost:5000')
+		console.log('📘 Swagger docs: http://localhost:5000/swagger')
 	})
