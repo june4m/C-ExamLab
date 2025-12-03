@@ -1,8 +1,24 @@
 import { eq, and, like } from 'drizzle-orm'
 import { db } from '../../configurations/database'
-import { accounts, rooms, roomParticipants } from '../../common/database/schema'
+import {
+	accounts,
+	rooms,
+	roomParticipants,
+	questions,
+	testCases
+} from '../../common/database/schema'
 import { wrapResponse } from '../../common/dtos/response'
-import type { Student, LeaderboardResponse, LeaderboardStudent, AddStudentToRoomDto, AddStudentToRoomResponse, RoomParticipant, RoomParticipantsList, RemoveStudentResponse } from './model'
+import type {
+	Student,
+	LeaderboardResponse,
+	LeaderboardStudent,
+	AddStudentToRoomDto,
+	AddStudentToRoomResponse,
+	RoomParticipant,
+	RoomParticipantsList,
+	RemoveStudentResponse,
+	GetTestcasesResponse
+} from './model'
 
 // Helper to format student data
 const formatStudent = (account: any): Student => ({
@@ -154,17 +170,18 @@ export const adminService = {
 			.set({ isBanned: 0, updatedAt: new Date() })
 			.where(eq(accounts.uuid, userId))
 
-		return wrapResponse({ message: 'success' }, 200, 'User unbanned successfully')
+		return wrapResponse(
+			{ message: 'success' },
+			200,
+			'User unbanned successfully'
+		)
 	},
 
 	getLeaderboard: async ({ params, user, set }: any) => {
 		const { roomId } = params
 
 		// Get room info
-		const [room] = await db
-			.select()
-			.from(rooms)
-			.where(eq(rooms.uuid, roomId))
+		const [room] = await db.select().from(rooms).where(eq(rooms.uuid, roomId))
 
 		if (!room) {
 			set.status = 404
@@ -174,7 +191,12 @@ export const adminService = {
 		// Check if user is owner of the room
 		if (room.createdBy !== user.userId) {
 			set.status = 403
-			return wrapResponse(null, 403, '', 'Forbidden - You are not the owner of this room')
+			return wrapResponse(
+				null,
+				403,
+				'',
+				'Forbidden - You are not the owner of this room'
+			)
 		}
 
 		// Get all participants in the room
@@ -209,10 +231,7 @@ export const adminService = {
 		const { roomId, studentId } = body as AddStudentToRoomDto
 
 		// Check if room exists
-		const [room] = await db
-			.select()
-			.from(rooms)
-			.where(eq(rooms.uuid, roomId))
+		const [room] = await db.select().from(rooms).where(eq(rooms.uuid, roomId))
 
 		if (!room) {
 			set.status = 404
@@ -222,7 +241,12 @@ export const adminService = {
 		// Check if user is owner of the room
 		if (room.createdBy !== user.userId) {
 			set.status = 403
-			return wrapResponse(null, 403, '', 'Forbidden - You are not the owner of this room')
+			return wrapResponse(
+				null,
+				403,
+				'',
+				'Forbidden - You are not the owner of this room'
+			)
 		}
 
 		// Check if student exists
@@ -284,7 +308,12 @@ export const adminService = {
 
 		if (room.createdBy !== user.userId) {
 			set.status = 403
-			return wrapResponse(null, 403, '', 'Forbidden - You are not the owner of this room')
+			return wrapResponse(
+				null,
+				403,
+				'',
+				'Forbidden - You are not the owner of this room'
+			)
 		}
 
 		const participants = await db
@@ -329,7 +358,12 @@ export const adminService = {
 
 		if (room.createdBy !== user.userId) {
 			set.status = 403
-			return wrapResponse(null, 403, '', 'Forbidden - You are not the owner of this room')
+			return wrapResponse(
+				null,
+				403,
+				'',
+				'Forbidden - You are not the owner of this room'
+			)
 		}
 
 		const participants = await db
@@ -373,7 +407,12 @@ export const adminService = {
 
 		if (room.createdBy !== user.userId) {
 			set.status = 403
-			return wrapResponse(null, 403, '', 'Forbidden - You are not the owner of this room')
+			return wrapResponse(
+				null,
+				403,
+				'',
+				'Forbidden - You are not the owner of this room'
+			)
 		}
 
 		const [participant] = await db
@@ -400,5 +439,62 @@ export const adminService = {
 		}
 
 		return wrapResponse(response, 200, 'Student removed from room successfully')
+	},
+
+	// Get testcases of a question
+	getTestcases: async ({ query, user, set }: any) => {
+		const { questionId } = query
+
+		// Check if question exists
+		const [question] = await db
+			.select()
+			.from(questions)
+			.where(eq(questions.uuid, questionId))
+
+		if (!question) {
+			set.status = 404
+			return wrapResponse(null, 404, '', 'Question not found')
+		}
+
+		// Check if user is owner of the room containing this question
+		const [room] = await db
+			.select()
+			.from(rooms)
+			.where(eq(rooms.uuid, question.roomUuid))
+
+		if (!room || room.createdBy !== user.userId) {
+			set.status = 403
+			return wrapResponse(
+				null,
+				403,
+				'',
+				'Forbidden - You are not the owner of this room'
+			)
+		}
+
+		// Get all testcases for this question
+		const testcaseList = await db
+			.select({
+				testcaseId: testCases.uuid,
+				index: testCases.index,
+				input_path: testCases.inputPath,
+				output_path: testCases.outputPath,
+				is_hidden: testCases.isHidden
+			})
+			.from(testCases)
+			.where(eq(testCases.questionUuid, questionId))
+
+		const response: GetTestcasesResponse = {
+			questionId,
+			testcaseList: testcaseList.map(tc => ({
+				testcaseId: tc.testcaseId,
+				index: tc.index,
+				input_path: tc.input_path,
+				output_path: tc.output_path,
+				is_hidden: tc.is_hidden ?? 1
+			}))
+		}
+
+		return wrapResponse(response, 200, 'Testcases retrieved successfully')
 	}
 }

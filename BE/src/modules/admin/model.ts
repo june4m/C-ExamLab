@@ -89,3 +89,27 @@ export const RemoveStudentResponseSchema = t.Object({
 })
 
 export type RemoveStudentResponse = typeof RemoveStudentResponseSchema.static
+
+// Schema for get testcases request
+export const GetTestcasesSchema = t.Object({
+	questionId: t.String()
+})
+
+export type GetTestcasesDto = typeof GetTestcasesSchema.static
+
+// Schema for testcase item
+export const TestcaseItemSchema = t.Object({
+	testcaseId: t.String(),
+	index: t.Number(),
+	input_path: t.String(),
+	output_path: t.String(),
+	is_hidden: t.Number()
+})
+
+// Schema for get testcases response
+export const GetTestcasesResponseSchema = t.Object({
+	questionId: t.String(),
+	testcaseList: t.Array(TestcaseItemSchema)
+})
+
+export type GetTestcasesResponse = typeof GetTestcasesResponseSchema.static
