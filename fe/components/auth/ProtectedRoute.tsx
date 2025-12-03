@@ -22,31 +22,31 @@ export function ProtectedRoute({
 	fallback = null,
 	requiredRole
 }: ProtectedRouteProps) {
-	const { isAuthenticated, token, user } = useAuth()
+	const { isAuthenticated, token } = useAuth()
 	const hasHydrated = useAuthStore(state => state._hasHydrated)
+	const user = useAuthStore(state => state.user)
 	const router = useRouter()
 
 	useEffect(() => {
-		// Only redirect after store has hydrated
-		if (!hasHydrated) return
-
-		if (!isAuthenticated || !token) {
+		// Only redirect after store has hydrated and user is not authenticated
+		if (hasHydrated && (!isAuthenticated || !token)) {
 			router.push(redirectTo)
 			return
 		}
 
-		// Redirect if user doesn't have required role
-		if (requiredRole && user?.role !== requiredRole) {
-			router.push('/dashboard')
+		// Redirect if role doesn't match
+		if (hasHydrated && requiredRole && user?.role !== requiredRole) {
+			router.push('/')
+			return
 		}
 	}, [
 		hasHydrated,
 		isAuthenticated,
 		token,
-		user,
 		router,
 		redirectTo,
-		requiredRole
+		requiredRole,
+		user?.role
 	])
 
 	// Show loading state while hydrating
@@ -70,7 +70,7 @@ export function ProtectedRoute({
 		return <>{fallback}</>
 	}
 
-	// Show fallback if user doesn't have required role
+	// Check role if required
 	if (requiredRole && user?.role !== requiredRole) {
 		return <>{fallback}</>
 	}
