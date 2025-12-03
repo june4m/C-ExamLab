@@ -309,13 +309,12 @@ export class CompilerService {
 	 * Uses base64 to safely handle any special characters in code
 	 */
 	private async writeAndCompile(
+		container: string,
 		code: string,
 		sourceFileName: string,
 		executableFileName: string,
 		optimizationLevel: OptimizationLevel = 0
 	): Promise<{ success: boolean; error?: string; compilationTime?: number }> {
-		const container = this.getNextContainer()
-
 		try {
 			const compileStart = Date.now()
 
@@ -359,6 +358,7 @@ export class CompilerService {
 	}
 
 	private async compileOnly(
+		container: string,
 		code: string,
 		sourceFileName: string,
 		executableFileName: string,
@@ -366,6 +366,7 @@ export class CompilerService {
 	): Promise<{ success: boolean; error?: string; compilationTime?: number }> {
 		// Reuse writeAndCompile for consistency
 		return this.writeAndCompile(
+			container,
 			code,
 			sourceFileName,
 			executableFileName,
@@ -642,6 +643,7 @@ export class CompilerService {
 			// 1) Compile once with specified optimization level
 			const optimizationLevel = request.optimizationLevel ?? 0
 			const compileResult = await this.compileOnly(
+				container,
 				request.code,
 				sourceFileName,
 				executableFileName,
