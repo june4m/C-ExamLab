@@ -56,8 +56,12 @@ export function JoinRoomForm() {
 					router.push(`/rooms/${data.roomId}`)
 				},
 				onError: (error: Error) => {
-					const axiosError = error as AxiosError<{ message?: string }>
+					const axiosError = error as AxiosError<{
+						message?: string
+						error?: string
+					}>
 					const errorMessage =
+						axiosError.response?.data?.error ||
 						axiosError.response?.data?.message ||
 						error.message ||
 						'Failed to join room. Please check your room code.'

@@ -63,9 +63,7 @@ export function useTestAnswer() {
 			)
 
 			if (!data.success || !data.data) {
-				throw new Error(
-					data.error || data.message || 'Failed to test answer'
-				)
+				throw new Error(data.error || data.message || 'Failed to test answer')
 			}
 
 			const judgeResult = data.data
@@ -91,8 +89,7 @@ export function useTestAnswer() {
 					error: result.error || null
 				})),
 				overallPassed:
-					judgeResult.passed === judgeResult.total &&
-					judgeResult.total > 0
+					judgeResult.passed === judgeResult.total && judgeResult.total > 0
 			}
 
 			return response

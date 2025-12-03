@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useSyncExternalStore } from 'react'
+import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuthStore } from '@/store/auth.store'
@@ -13,16 +13,6 @@ interface ProtectedRouteProps {
 	requiredRole?: string
 }
 
-// Hook to check if component is hydrated (client-side)
-const emptySubscribe = () => () => {}
-function useIsHydrated() {
-	return useSyncExternalStore(
-		emptySubscribe,
-		() => true,
-		() => false
-	)
-}
-
 /**
  * Component to protect routes - only renders children if user is authenticated
  */
@@ -32,34 +22,25 @@ export function ProtectedRoute({
 	fallback = null,
 	requiredRole
 }: ProtectedRouteProps) {
-<<<<<<< HEAD
 	const { isAuthenticated, token, user } = useAuth()
-=======
-	const { isAuthenticated, token } = useAuth()
 	const hasHydrated = useAuthStore(state => state._hasHydrated)
->>>>>>> origin/main
 	const router = useRouter()
-	const isHydrated = useIsHydrated()
 
 	useEffect(() => {
-<<<<<<< HEAD
-		if (!isHydrated) return
+		// Only redirect after store has hydrated
+		if (!hasHydrated) return
 
 		if (!isAuthenticated || !token) {
-=======
-		// Only redirect after store has hydrated and user is not authenticated
-		if (hasHydrated && (!isAuthenticated || !token)) {
->>>>>>> origin/main
 			router.push(redirectTo)
 			return
 		}
-<<<<<<< HEAD
 
+		// Redirect if user doesn't have required role
 		if (requiredRole && user?.role !== requiredRole) {
 			router.push('/dashboard')
 		}
 	}, [
-		isHydrated,
+		hasHydrated,
 		isAuthenticated,
 		token,
 		user,
@@ -67,17 +48,6 @@ export function ProtectedRoute({
 		redirectTo,
 		requiredRole
 	])
-
-	if (!isHydrated) {
-		return (
-			<div className="flex min-h-screen items-center justify-center">
-				<div className="text-muted-foreground">Loading...</div>
-			</div>
-		)
-	}
-
-=======
-	}, [hasHydrated, isAuthenticated, token, router, redirectTo])
 
 	// Show loading state while hydrating
 	if (!hasHydrated) {
@@ -96,11 +66,11 @@ export function ProtectedRoute({
 	}
 
 	// Show fallback or nothing if not authenticated (after hydration)
->>>>>>> origin/main
 	if (!isAuthenticated || !token) {
 		return <>{fallback}</>
 	}
 
+	// Show fallback if user doesn't have required role
 	if (requiredRole && user?.role !== requiredRole) {
 		return <>{fallback}</>
 	}

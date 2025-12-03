@@ -1,8 +1,26 @@
 import { eq, and } from 'drizzle-orm'
 import { db } from '../../configurations/database'
-import { accounts, rooms, roomParticipants, questions, submissions, submissionDetails } from '../../common/database/schema'
+import {
+	accounts,
+	rooms,
+	roomParticipants,
+	questions,
+	submissions,
+	submissionDetails
+} from '../../common/database/schema'
 import { wrapResponse } from '../../common/dtos/response'
-import type { JoinRoomDto, JoinRoomResponse, UpdateStudentProfileDto, UpdateStudentProfileResponse, StudentRoomsResponse, RoomExamsResponse, SubmitQuestionDto, SubmitQuestionResponse, ViewMyScoreDto, ViewMyScoreResponse } from './model'
+import type {
+	JoinRoomDto,
+	JoinRoomResponse,
+	UpdateStudentProfileDto,
+	UpdateStudentProfileResponse,
+	StudentRoomsResponse,
+	RoomExamsResponse,
+	SubmitQuestionDto,
+	SubmitQuestionResponse,
+	ViewMyScoreDto,
+	ViewMyScoreResponse
+} from './model'
 
 export const userService = {
 	getProfile: async ({ user, set }: any) => {
@@ -40,77 +58,131 @@ export const userService = {
 	},
 
 	joinRoom: async ({ body, user, set }: any) => {
-		const { roomCode } = body as JoinRoomDto
+		try {
+			const { roomCode } = body as JoinRoomDto
 
-		// Find room by code
-		const [room] = await db
-			.select()
-			.from(rooms)
-			.where(eq(rooms.code, roomCode.toUpperCase()))
-
-		if (!room) {
-			set.status = 404
-			return wrapResponse(null, 404, '', 'Room not found')
-		}
-
-		const now = new Date()
-
-		// Check if room has openTime
-		if (room.openTime) {
-			// Calculate 15 minutes before openTime
-			const earliestJoinTime = new Date(room.openTime.getTime() - 15 * 60 * 1000)
-
-			if (now < earliestJoinTime) {
-				set.status = 400
-				const openTimeStr = room.openTime.toISOString()
-				return wrapResponse(null, 400, '', `Room is not open yet. You can join 15 minutes before ${openTimeStr}`)
+			if (!user || !user.userId) {
+				set.status = 401
+				return wrapResponse(null, 401, '', 'Unauthorized')
 			}
-		}
 
-		// Check if room is closed
-		if (room.closeTime && now > room.closeTime) {
-			set.status = 400
-			return wrapResponse(null, 400, '', 'Room is already closed')
-		}
+			// Find room by code
+			const [room] = await db
+				.select()
+				.from(rooms)
+				.where(eq(rooms.code, roomCode.toUpperCase()))
 
-		// Check if student is already in the room
-		const [existingParticipant] = await db
-			.select()
-			.from(roomParticipants)
-			.where(
-				and(
-					eq(roomParticipants.roomUuid, room.uuid),
-					eq(roomParticipants.accountUuid, user.userId)
+			if (!room) {
+				set.status = 404
+				return wrapResponse(null, 404, '', 'Room not found')
+			}
+
+			const now = new Date()
+
+			// Check if room has openTime
+			if (room.openTime) {
+				// Ensure openTime is a Date object
+				const openTime =
+					room.openTime instanceof Date
+						? room.openTime
+						: new Date(room.openTime)
+
+				// Calculate 15 minutes before openTime
+				const earliestJoinTime = new Date(openTime.getTime() - 15 * 60 * 1000)
+
+				if (now < earliestJoinTime) {
+					set.status = 400
+					const openTimeStr = openTime.toISOString()
+					return wrapResponse(
+						null,
+						400,
+						'',
+						`Room is not open yet. You can join 15 minutes before ${openTimeStr}`
+					)
+				}
+			}
+
+			// Check if room is closed
+			if (room.closeTime) {
+				const closeTime =
+					room.closeTime instanceof Date
+						? room.closeTime
+						: new Date(room.closeTime)
+
+				if (now > closeTime) {
+					set.status = 400
+					return wrapResponse(null, 400, '', 'Room is already closed')
+				}
+			}
+
+			// Check if student is already in the room
+			const [existingParticipant] = await db
+				.select()
+				.from(roomParticipants)
+				.where(
+					and(
+						eq(roomParticipants.roomUuid, room.uuid),
+						eq(roomParticipants.accountUuid, user.userId)
+					)
 				)
-			)
 
-		if (existingParticipant) {
-			// Already joined, return success
+			if (existingParticipant) {
+				// Already joined, return success
+				const response: JoinRoomResponse = {
+					message: 'Already joined',
+					roomId: room.uuid,
+					roomName: room.name,
+					openTime:
+						room.openTime instanceof Date
+							? room.openTime.toISOString()
+							: room.openTime
+							? new Date(room.openTime).toISOString()
+							: null,
+					closeTime:
+						room.closeTime instanceof Date
+							? room.closeTime.toISOString()
+							: room.closeTime
+							? new Date(room.closeTime).toISOString()
+							: null
+				}
+				return wrapResponse(response, 200, 'You are already in this room')
+			}
+
+			// Add student to room
+			await db.insert(roomParticipants).values({
+				roomUuid: room.uuid,
+				accountUuid: user.userId
+			})
+
 			const response: JoinRoomResponse = {
-				message: 'Already joined',
+				message: 'success',
 				roomId: room.uuid,
 				roomName: room.name,
-				openTime: room.openTime?.toISOString() ?? null,
-				closeTime: room.closeTime?.toISOString() ?? null
+				openTime:
+					room.openTime instanceof Date
+						? room.openTime.toISOString()
+						: room.openTime
+						? new Date(room.openTime).toISOString()
+						: null,
+				closeTime:
+					room.closeTime instanceof Date
+						? room.closeTime.toISOString()
+						: room.closeTime
+						? new Date(room.closeTime).toISOString()
+						: null
 			}
-			return wrapResponse(response, 200, 'You are already in this room')
+
+			return wrapResponse(response, 201, 'Joined room successfully')
+		} catch (error: any) {
+			console.error('[joinRoom Error]', error)
+			set.status = 500
+			return wrapResponse(
+				null,
+				500,
+				'',
+				error.message || 'Failed to join room. Please try again later.'
+			)
 		}
-
-		// Add student to room
-		await db.insert(roomParticipants).values({
-			roomUuid: room.uuid,
-			accountUuid: user.userId
-		})
-
-		const response: JoinRoomResponse = {
-			message: 'success',
-			roomId: room.uuid,
-			roomName: room.name,
-			openTime: room.openTime?.toISOString() ?? null,
-			closeTime: room.closeTime?.toISOString() ?? null
-		}
-
-		return wrapResponse(response, 201, 'Joined room successfully')
 	},
 
 	updateProfile: async ({ body, user, set }: any) => {
@@ -135,7 +207,12 @@ export const userService = {
 
 		if (existingUser && existingUser.uuid !== user.userId) {
 			set.status = 400
-			return wrapResponse(null, 400, '', 'Email already in use by another account')
+			return wrapResponse(
+				null,
+				400,
+				'',
+				'Email already in use by another account'
+			)
 		}
 
 		// Update the profile
@@ -206,7 +283,12 @@ export const userService = {
 
 		if (!participant) {
 			set.status = 403
-			return wrapResponse(null, 403, '', 'You are not a participant of this room')
+			return wrapResponse(
+				null,
+				403,
+				'',
+				'You are not a participant of this room'
+			)
 		}
 
 		// Get all questions/exams in the room
@@ -255,7 +337,12 @@ export const userService = {
 
 		if (!participant) {
 			set.status = 403
-			return wrapResponse(null, 403, '', 'You are not a participant of this room')
+			return wrapResponse(
+				null,
+				403,
+				'',
+				'You are not a participant of this room'
+			)
 		}
 
 		// Check if question exists in this room
@@ -362,7 +449,12 @@ export const userService = {
 
 		if (!participant) {
 			set.status = 403
-			return wrapResponse(null, 403, '', 'You are not a participant of this room')
+			return wrapResponse(
+				null,
+				403,
+				'',
+				'You are not a participant of this room'
+			)
 		}
 
 		// Get all questions in the room
@@ -408,7 +500,10 @@ export const userService = {
 			for (const sub of questionSubmissions) {
 				if (sub.status === 'AC') {
 					solved = true
-					if (!bestSubmission || (sub.score ?? 0) > (bestSubmission.score ?? 0)) {
+					if (
+						!bestSubmission ||
+						(sub.score ?? 0) > (bestSubmission.score ?? 0)
+					) {
 						bestSubmission = sub
 						myScore = sub.score ?? q.score ?? 0
 					}
