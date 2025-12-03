@@ -9,17 +9,17 @@ export interface SubmitAnswerRequest {
 export interface SubmissionDetail {
 	testCaseIndex: number
 	status: string
-	runTime: number // ms
-	memoryUsed: number // KB
-	stdout: string
-	stderr: string
+	runTime: number | null // ms
+	memoryUsed: number | null // KB
+	stdout: string | null
+	stderr: string | null
 }
 
 export interface SubmitAnswerResponse {
 	status: string
-	score: number
-	totalRunTime: number // ms
-	memoryUsed: number // KB
+	score: number | null
+	totalRunTime: number | null // ms
+	memoryUsed: number | null // KB
 	details: SubmissionDetail[]
 }
 
@@ -32,11 +32,11 @@ export interface GetSubmissionsRequest {
 export interface QuestionResult {
 	questionId: string
 	title: string
-	score: number
+	score: number | null
 	myScore: number
 	solved: boolean
 	attempts: number
-	bestSubmissionId: string
+	bestSubmissionId: string | null
 }
 
 export interface GetSubmissionsResponse {

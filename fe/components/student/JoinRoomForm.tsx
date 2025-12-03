@@ -18,11 +18,9 @@ import { AlertCircle } from 'lucide-react'
 
 export function JoinRoomForm() {
 	const router = useRouter()
-	const [roomId, setRoomId] = useState('')
-	const [code, setCode] = useState('')
+	const [roomCode, setRoomCode] = useState('')
 	const [errors, setErrors] = useState<{
-		roomId?: string
-		code?: string
+		roomCode?: string
 		general?: string
 	}>({})
 
@@ -31,12 +29,10 @@ export function JoinRoomForm() {
 	const validate = () => {
 		const newErrors: typeof errors = {}
 
-		if (!roomId.trim()) {
-			newErrors.roomId = 'Room ID is required'
-		}
-
-		if (!code.trim()) {
-			newErrors.code = 'Room code is required'
+		if (!roomCode.trim()) {
+			newErrors.roomCode = 'Room code is required'
+		} else if (roomCode.trim().length !== 6) {
+			newErrors.roomCode = 'Room code must be 6 characters'
 		}
 
 		setErrors(newErrors)
@@ -52,21 +48,19 @@ export function JoinRoomForm() {
 
 		joinRoom(
 			{
-				roomId: roomId.trim(),
-				code: code.trim(),
-				join_at: new Date()
+				roomCode: roomCode.trim().toUpperCase()
 			},
 			{
-				onSuccess: (data, variables) => {
+				onSuccess: data => {
 					// Redirect to the room page after successful join
-					router.push(`/rooms/${variables.roomId}`)
+					router.push(`/rooms/${data.roomId}`)
 				},
 				onError: (error: Error) => {
 					const axiosError = error as AxiosError<{ message?: string }>
 					const errorMessage =
 						axiosError.response?.data?.message ||
 						error.message ||
-						'Failed to join room. Please check your room ID and code.'
+						'Failed to join room. Please check your room code.'
 					setErrors({ general: errorMessage })
 				}
 			}
@@ -78,7 +72,7 @@ export function JoinRoomForm() {
 			<CardHeader>
 				<CardTitle>Join Exam Room</CardTitle>
 				<CardDescription>
-					Enter the room ID and code to join an exam room
+					Enter the 6-character room code to join an exam room
 				</CardDescription>
 			</CardHeader>
 			<form onSubmit={handleSubmit}>
@@ -91,48 +85,26 @@ export function JoinRoomForm() {
 					)}
 
 					<div className="space-y-2">
-						<label htmlFor="roomId" className="text-sm font-medium">
-							Room ID
-						</label>
-						<Input
-							id="roomId"
-							type="text"
-							placeholder="Enter room ID"
-							value={roomId}
-							onChange={e => {
-								setRoomId(e.target.value)
-								if (errors.roomId) {
-									setErrors({ ...errors, roomId: undefined })
-								}
-							}}
-							disabled={isPending}
-							className={errors.roomId ? 'border-destructive' : ''}
-						/>
-						{errors.roomId && (
-							<p className="text-sm text-destructive">{errors.roomId}</p>
-						)}
-					</div>
-
-					<div className="space-y-2">
-						<label htmlFor="code" className="text-sm font-medium">
+						<label htmlFor="roomCode" className="text-sm font-medium">
 							Room Code
 						</label>
 						<Input
-							id="code"
+							id="roomCode"
 							type="text"
-							placeholder="Enter room code"
-							value={code}
+							placeholder="Enter 6-character room code"
+							value={roomCode}
+							maxLength={6}
 							onChange={e => {
-								setCode(e.target.value)
-								if (errors.code) {
-									setErrors({ ...errors, code: undefined })
+								setRoomCode(e.target.value.toUpperCase())
+								if (errors.roomCode) {
+									setErrors({ ...errors, roomCode: undefined })
 								}
 							}}
 							disabled={isPending}
-							className={errors.code ? 'border-destructive' : ''}
+							className={errors.roomCode ? 'border-destructive' : ''}
 						/>
-						{errors.code && (
-							<p className="text-sm text-destructive">{errors.code}</p>
+						{errors.roomCode && (
+							<p className="text-sm text-destructive">{errors.roomCode}</p>
 						)}
 					</div>
 				</CardContent>

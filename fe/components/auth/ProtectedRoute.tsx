@@ -3,6 +3,8 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
+import { useAuthStore } from '@/store/auth.store'
+import { Loader2 } from 'lucide-react'
 
 interface ProtectedRouteProps {
 	children: React.ReactNode
@@ -13,10 +15,6 @@ interface ProtectedRouteProps {
 
 /**
  * Component to protect routes - only renders children if user is authenticated
- * @param children - Content to render if authenticated
- * @param redirectTo - Path to redirect to if not authenticated (defaults to '/login')
- * @param fallback - Optional loading/fallback component to show while checking auth
- * @param requiredRole - Optional role required to access the route
  */
 export function ProtectedRoute({
 	children,
@@ -24,28 +22,55 @@ export function ProtectedRoute({
 	fallback = null,
 	requiredRole
 }: ProtectedRouteProps) {
-	const { isAuthenticated, token, user } = useAuth()
+	const { isAuthenticated, token } = useAuth()
+	const hasHydrated = useAuthStore(state => state._hasHydrated)
+	const user = useAuthStore(state => state.user)
 	const router = useRouter()
 
 	useEffect(() => {
-		// Check authentication status and redirect if not authenticated
-		if (!isAuthenticated || !token) {
+		// Only redirect after store has hydrated and user is not authenticated
+		if (hasHydrated && (!isAuthenticated || !token)) {
 			router.push(redirectTo)
 			return
 		}
 
-		// Check role if required
-		if (requiredRole && user?.role !== requiredRole) {
-			router.push('/dashboard')
+		// Redirect if role doesn't match
+		if (hasHydrated && requiredRole && user?.role !== requiredRole) {
+			router.push('/')
+			return
 		}
-	}, [isAuthenticated, token, user, router, redirectTo, requiredRole])
+	}, [
+		hasHydrated,
+		isAuthenticated,
+		token,
+		router,
+		redirectTo,
+		requiredRole,
+		user?.role
+	])
 
-	// Show fallback or nothing if not authenticated
+	// Show loading state while hydrating
+	if (!hasHydrated) {
+		return (
+			<>
+				{fallback || (
+					<div className="flex min-h-screen items-center justify-center">
+						<div className="flex flex-col items-center gap-3">
+							<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+							<p className="text-sm text-muted-foreground">Loading...</p>
+						</div>
+					</div>
+				)}
+			</>
+		)
+	}
+
+	// Show fallback or nothing if not authenticated (after hydration)
 	if (!isAuthenticated || !token) {
 		return <>{fallback}</>
 	}
 
-	// Show fallback if role doesn't match
+	// Check role if required
 	if (requiredRole && user?.role !== requiredRole) {
 		return <>{fallback}</>
 	}
