@@ -39,12 +39,28 @@ function useGetRooms() {
 					Authorization: `Bearer ${token}`
 				}
 			})
-			const json = (await res.json()) as RoomsResponse
-			if (!res.ok || !json.success) {
-				throw new Error(json.message || 'Failed to fetch rooms')
+
+			// Check if response is ok before parsing
+			if (!res.ok) {
+				throw new Error(`HTTP ${res.status}: Failed to fetch rooms`)
 			}
-			return json.data
-		}
+
+			const text = await res.text()
+			if (!text) {
+				throw new Error('Empty response from server')
+			}
+
+			try {
+				const json = JSON.parse(text) as RoomsResponse
+				if (!json.success) {
+					throw new Error(json.message || json.error || 'Failed to fetch rooms')
+				}
+				return json.data
+			} catch (e) {
+				throw new Error('Invalid response from server')
+			}
+		},
+		enabled: !!token
 	})
 }
 
