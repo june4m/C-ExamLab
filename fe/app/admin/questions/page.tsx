@@ -405,7 +405,7 @@ export default function AdminQuestionsPage() {
 	if (questionsError) {
 		return (
 			<div className="rounded-md bg-destructive/10 p-4 text-center text-destructive">
-				Không thể tải danh sách câu hỏi
+				Failed to load questions
 			</div>
 		)
 	}
@@ -415,9 +415,9 @@ export default function AdminQuestionsPage() {
 			{/* Header */}
 			<div className="mb-6 flex items-center justify-between">
 				<div>
-					<h1 className="text-2xl font-bold">Quản lý câu hỏi</h1>
+					<h1 className="text-2xl font-bold">Question management</h1>
 					<p className="text-muted-foreground">
-						Tổng cộng {questions.length} câu hỏi
+						Total {questions.length} questions
 					</p>
 				</div>
 				<Dialog
@@ -430,19 +430,19 @@ export default function AdminQuestionsPage() {
 					<DialogTrigger asChild>
 						<Button className="bg-[#40E0D0] hover:bg-[#40E0D0]/90 text-white">
 							<Plus className="mr-2 h-4 w-4" />
-							Thêm câu hỏi
+							Add question
 						</Button>
 					</DialogTrigger>
 					<DialogContent>
 						<DialogHeader>
-							<DialogTitle>Thêm câu hỏi mới</DialogTitle>
+							<DialogTitle>Add new question</DialogTitle>
 							<DialogDescription>
-								Điền thông tin cho câu hỏi mới
+								Fill in information for the new question
 							</DialogDescription>
 						</DialogHeader>
 						<div className="grid gap-4 py-4">
 							<div className="grid gap-2">
-								<Label>Phòng thi *</Label>
+								<Label>Room *</Label>
 								<Select
 									value={formData.roomId}
 									onValueChange={value =>
@@ -450,7 +450,7 @@ export default function AdminQuestionsPage() {
 									}
 								>
 									<SelectTrigger>
-										<SelectValue placeholder="Chọn phòng thi" />
+										<SelectValue placeholder="Select room" />
 									</SelectTrigger>
 									<SelectContent>
 										{rooms?.map(room => (
@@ -462,17 +462,17 @@ export default function AdminQuestionsPage() {
 								</Select>
 							</div>
 							<div className="grid gap-2">
-								<Label>Tiêu đề *</Label>
+								<Label>Title *</Label>
 								<Input
 									value={formData.title}
 									onChange={e =>
 										setFormData({ ...formData, title: e.target.value })
 									}
-									placeholder="Nhập tiêu đề câu hỏi"
+									placeholder="Enter question title"
 								/>
 							</div>
 							<div className="grid gap-2">
-								<Label>Đường dẫn mô tả</Label>
+								<Label>Description path</Label>
 								<Input
 									value={formData.descriptionPath}
 									onChange={e =>
@@ -481,12 +481,12 @@ export default function AdminQuestionsPage() {
 											descriptionPath: e.target.value
 										})
 									}
-									placeholder="/questions/description.md"
+									placeholder="/path/to/description.md"
 								/>
 							</div>
 							<div className="grid grid-cols-2 gap-4">
 								<div className="grid gap-2">
-									<Label>Điểm</Label>
+									<Label>Score</Label>
 									<Input
 										type="number"
 										value={formData.score}
@@ -499,7 +499,7 @@ export default function AdminQuestionsPage() {
 									/>
 								</div>
 								<div className="grid gap-2">
-									<Label>Thứ tự</Label>
+									<Label>Order</Label>
 									<Input
 										type="number"
 										value={formData.order}
@@ -514,7 +514,7 @@ export default function AdminQuestionsPage() {
 							</div>
 							<div className="grid grid-cols-2 gap-4">
 								<div className="grid gap-2">
-									<Label>Time Limit (ms)</Label>
+									<Label>Time limit (ms)</Label>
 									<Input
 										type="number"
 										value={formData.timeLimit}
@@ -527,7 +527,7 @@ export default function AdminQuestionsPage() {
 									/>
 								</div>
 								<div className="grid gap-2">
-									<Label>Memory Limit (MB)</Label>
+									<Label>Memory limit (MB)</Label>
 									<Input
 										type="number"
 										value={formData.memoryLimit}
@@ -543,7 +543,7 @@ export default function AdminQuestionsPage() {
 						</div>
 						<DialogFooter>
 							<Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-								Hủy
+								Cancel
 							</Button>
 							<Button
 								onClick={handleCreate}
@@ -553,7 +553,7 @@ export default function AdminQuestionsPage() {
 								{createQuestion.isPending ? (
 									<Loader2 className="h-4 w-4 animate-spin mr-2" />
 								) : null}
-								Tạo câu hỏi
+								Create question
 							</Button>
 						</DialogFooter>
 					</DialogContent>
@@ -567,7 +567,7 @@ export default function AdminQuestionsPage() {
 						<div className="relative flex-1">
 							<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 							<Input
-								placeholder="Tìm kiếm theo tiêu đề hoặc mã..."
+								placeholder="Search by title or code..."
 								className="pl-10"
 								value={searchQuery}
 								onChange={e => setSearchQuery(e.target.value)}
@@ -575,10 +575,10 @@ export default function AdminQuestionsPage() {
 						</div>
 						<Select value={filterRoom} onValueChange={setFilterRoom}>
 							<SelectTrigger className="w-[200px]">
-								<SelectValue placeholder="Lọc theo phòng" />
+								<SelectValue placeholder="Filter by room" />
 							</SelectTrigger>
 							<SelectContent>
-								<SelectItem value="all">Tất cả phòng</SelectItem>
+								<SelectItem value="all">All rooms</SelectItem>
 								{rooms?.map(room => (
 									<SelectItem key={room.uuid} value={room.uuid}>
 										{room.name}
@@ -593,27 +593,27 @@ export default function AdminQuestionsPage() {
 			{/* Questions Table */}
 			<Card>
 				<CardHeader>
-					<CardTitle>Danh sách câu hỏi</CardTitle>
+					<CardTitle>Question list</CardTitle>
 					<CardDescription>
-						Hiển thị {filteredQuestions.length} / {questions.length} câu hỏi
+						Showing {filteredQuestions.length} / {questions.length} questions
 					</CardDescription>
 				</CardHeader>
 				<CardContent>
 					<Table>
 						<TableHeader>
 							<TableRow>
-								<TableHead className="w-[80px]">Mã</TableHead>
-								<TableHead className="min-w-[150px]">Tiêu đề</TableHead>
-								<TableHead className="min-w-[120px]">Phòng thi</TableHead>
-								<TableHead className="w-[70px] text-center">Điểm</TableHead>
+								<TableHead className="w-[80px]">Code</TableHead>
+								<TableHead className="min-w-[150px]">Title</TableHead>
+								<TableHead className="min-w-[120px]">Room</TableHead>
+								<TableHead className="w-[70px] text-center">Score</TableHead>
 								<TableHead className="w-[100px] text-center">
-									Time Limit
+									Time limit
 								</TableHead>
 								<TableHead className="w-[100px] text-center">
-									Test Cases
+									Test cases
 								</TableHead>
 								<TableHead className="w-[130px] text-center">
-									Hành động
+									Actions
 								</TableHead>
 							</TableRow>
 						</TableHeader>
@@ -648,7 +648,7 @@ export default function AdminQuestionsPage() {
 											onClick={() => handleOpenTestCases(question)}
 										>
 											<FileCode className="h-4 w-4 mr-1" />
-											Xem
+											View
 										</Button>
 									</TableCell>
 									<TableCell>
@@ -661,7 +661,7 @@ export default function AdminQuestionsPage() {
 													setViewingQuestion(question)
 													setIsInfoDialogOpen(true)
 												}}
-												title="Xem chi tiết"
+												title="View details"
 											>
 												<Info className="h-4 w-4" />
 											</Button>

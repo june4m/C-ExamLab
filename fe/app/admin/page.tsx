@@ -16,49 +16,49 @@ import { useGetAdminQuestions } from "@/service/admin/question.service"
 import { useGetAdminUsers } from "@/service/admin/user.service"
 import { axiosGeneral as axios } from "@/common/axios"
 
-// Helper function to get month name in Vietnamese
+// Helper function to get month name in English
 const getMonthName = (monthIndex: number) => {
   const months = [
-    "Tháng 1",
-    "Tháng 2",
-    "Tháng 3",
-    "Tháng 4",
-    "Tháng 5",
-    "Tháng 6",
-    "Tháng 7",
-    "Tháng 8",
-    "Tháng 9",
-    "Tháng 10",
-    "Tháng 11",
-    "Tháng 12",
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
   ]
   return months[monthIndex]
 }
 
-// Helper function to format date to relative time
+// Helper function to format date to relative time in English
 const formatRelativeTime = (dateString: string) => {
   const date = new Date(dateString)
   const now = new Date()
   const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
 
-  if (diffInSeconds < 60) return "Vừa xong"
-  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} phút trước`
-  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} giờ trước`
-  if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)} ngày trước`
-  return `${Math.floor(diffInSeconds / 2592000)} tháng trước`
+  if (diffInSeconds < 60) return "Just now"
+  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`
+  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`
+  if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)} days ago`
+  return `${Math.floor(diffInSeconds / 2592000)} months ago`
 }
 
 const chartConfig = {
   phongThi: {
-    label: "Phòng thi",
+    label: "Exam rooms",
     color: "hsl(var(--chart-1))",
   },
   sinhVien: {
-    label: "Sinh viên",
+    label: "Students",
     color: "hsl(var(--chart-2))",
   },
   cauHoi: {
-    label: "Câu hỏi",
+    label: "Questions",
     color: "hsl(var(--chart-3))",
   },
 } satisfies ChartConfig
@@ -250,7 +250,7 @@ export default function AdminDashboardPage() {
         {/* Total Rooms */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Tổng số phòng thi</CardTitle>
+            <CardTitle className="text-sm font-medium">Total exam rooms</CardTitle>
             <BookOpen className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -270,7 +270,7 @@ export default function AdminDashboardPage() {
         {/* Total Questions */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Tổng số câu hỏi</CardTitle>
+            <CardTitle className="text-sm font-medium">Total questions</CardTitle>
             <FileQuestion className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -281,10 +281,10 @@ export default function AdminDashboardPage() {
                 <div className="text-2xl font-bold">{dashboardStats.totalQuestions}</div>
                 <p className="text-xs text-muted-foreground">
                   {dashboardStats.totalRooms > 0
-                    ? `Trung bình ${Math.round(
+                    ? `Average ${Math.round(
                         dashboardStats.totalQuestions / dashboardStats.totalRooms
-                      )} câu/phòng`
-                    : "Chưa có phòng thi"}
+                      )} questions/room`
+                    : "No rooms yet"}
                 </p>
               </>
             )}
@@ -294,7 +294,7 @@ export default function AdminDashboardPage() {
         {/* Total Students */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Tổng số thí sinh</CardTitle>
+            <CardTitle className="text-sm font-medium">Total candidates</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -312,7 +312,7 @@ export default function AdminDashboardPage() {
         {/* Active Exams */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Phòng thi đang diễn ra</CardTitle>
+            <CardTitle className="text-sm font-medium">Ongoing exam rooms</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -335,8 +335,8 @@ export default function AdminDashboardPage() {
         {/* Area Chart - Xu hướng theo thời gian */}
         <Card>
           <CardHeader>
-            <CardTitle>Xu hướng 6 tháng gần đây</CardTitle>
-            <CardDescription>Thống kê phòng thi, sinh viên và câu hỏi</CardDescription>
+            <CardTitle>Last 6 months trend</CardTitle>
+            <CardDescription>Statistics of exam rooms, students and questions</CardDescription>
           </CardHeader>
           <CardContent>
             <ChartContainer config={chartConfig}>
@@ -390,8 +390,8 @@ export default function AdminDashboardPage() {
         {/* Bar Chart - So sánh */}
         <Card>
           <CardHeader>
-            <CardTitle>So sánh tháng hiện tại</CardTitle>
-            <CardDescription>Thống kê chi tiết theo từng chỉ số</CardDescription>
+            <CardTitle>Current month comparison</CardTitle>
+            <CardDescription>Detailed statistics by metric</CardDescription>
           </CardHeader>
           <CardContent>
             <ChartContainer config={chartConfig}>
@@ -438,8 +438,8 @@ export default function AdminDashboardPage() {
       <div className="mt-6">
         <Card>
           <CardHeader>
-            <CardTitle>Hoạt động gần đây</CardTitle>
-            <CardDescription>Các hoạt động mới nhất trong hệ thống</CardDescription>
+            <CardTitle>Recent activity</CardTitle>
+            <CardDescription>Latest activities in the system</CardDescription>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -448,7 +448,7 @@ export default function AdminDashboardPage() {
               </div>
             ) : recentActivities.length === 0 ? (
               <div className="py-8 text-center text-muted-foreground">
-                <p>Chưa có hoạt động nào</p>
+                <p>No activity yet</p>
               </div>
             ) : (
               <div className="space-y-4">

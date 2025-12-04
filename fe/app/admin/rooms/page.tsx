@@ -98,11 +98,11 @@ export default function AdminRoomsPage() {
 			{/* Empty State */}
 			{!isLoading && !error && rooms?.length === 0 && (
 				<div className="rounded-md border border-dashed p-12 text-center">
-					<p className="text-muted-foreground">Chưa có phòng thi nào</p>
+					<p className="text-muted-foreground">No exam rooms yet</p>
 					<Link href="/admin/rooms/create">
 						<Button className="mt-4">
 							<Plus className="mr-2 h-4 w-4" />
-							Tạo phòng thi đầu tiên
+							Create the first exam room
 						</Button>
 					</Link>
 				</div>
