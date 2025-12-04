@@ -308,23 +308,23 @@ function useUnbanUser(roomId: string) {
 	})
 }
 
-function useAddStudentToRoom(roomId: string) {
+function useAddStudentsToRoom(roomId: string) {
 	const token = useAuthStore(state => state.token)
 	const queryClient = useQueryClient()
 
 	return useMutation({
-		mutationFn: async (studentId: string) => {
-			const res = await fetch(`${API_BASE_URL}/admin/room/add-student`, {
+		mutationFn: async (studentIds: string[]) => {
+			const res = await fetch(`${API_BASE_URL}/admin/room/add-students`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
 					Authorization: `Bearer ${token}`
 				},
-				body: JSON.stringify({ roomId, studentId })
+				body: JSON.stringify({ roomId, studentIds })
 			})
 			const json = await res.json()
 			if (!res.ok || !json.success) {
-				throw new Error(json.message || 'Failed to add student')
+				throw new Error(json.message || 'Failed to add students')
 			}
 			return json
 		},
@@ -558,7 +558,9 @@ function QuestionCard({
 				<DialogContent className="max-w-lg">
 					<DialogHeader>
 						<DialogTitle>Question details</DialogTitle>
-						<DialogDescription>Full information about this question</DialogDescription>
+						<DialogDescription>
+							Full information about this question
+						</DialogDescription>
 					</DialogHeader>
 					<div className="space-y-4">
 						<div className="grid grid-cols-2 gap-4">
@@ -608,7 +610,9 @@ function QuestionCard({
 							</div>
 						)}
 						<div>
-							<Label className="text-xs text-muted-foreground">Created at</Label>
+							<Label className="text-xs text-muted-foreground">
+								Created at
+							</Label>
 							<p className="text-sm">
 								{new Date(question.createdAt).toLocaleString('vi-VN')}
 							</p>
@@ -697,13 +701,15 @@ function QuestionCard({
 												</AlertDialogTrigger>
 												<AlertDialogContent>
 													<AlertDialogHeader>
-													<AlertDialogTitle>Delete test case?</AlertDialogTitle>
-													<AlertDialogDescription>
-														This action cannot be undone.
-													</AlertDialogDescription>
+														<AlertDialogTitle>
+															Delete test case?
+														</AlertDialogTitle>
+														<AlertDialogDescription>
+															This action cannot be undone.
+														</AlertDialogDescription>
 													</AlertDialogHeader>
 													<AlertDialogFooter>
-													<AlertDialogCancel>Cancel</AlertDialogCancel>
+														<AlertDialogCancel>Cancel</AlertDialogCancel>
 														<AlertDialogAction
 															onClick={() =>
 																handleDeleteTestCase(tc.testcaseId)
@@ -853,21 +859,18 @@ export default function AdminRoomDetailPage() {
 		useGetRoomParticipants(roomId)
 	const { mutate: banUser, isPending: isBanning } = useBanUser(roomId)
 	const { mutate: unbanUser, isPending: isUnbanning } = useUnbanUser(roomId)
-	const { mutate: addStudent, isPending: isAddingStudent } =
-		useAddStudentToRoom(roomId)
+	const { mutate: addStudents, isPending: isAddingStudents } =
+		useAddStudentsToRoom(roomId)
 	const { data: usersData, isLoading: usersLoading } = useGetAdminUsers()
 	const { data: scoresData, isLoading: scoresLoading } =
 		useGetRoomScores(roomId)
 
 	const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
 	const [isAddStudentDialogOpen, setIsAddStudentDialogOpen] = useState(false)
-	const [studentIdToAdd, setStudentIdToAdd] = useState('')
 	const [studentSearchQuery, setStudentSearchQuery] = useState('')
-	const [selectedStudent, setSelectedStudent] = useState<{
-		studentId: string
-		studentFullName: string
-		studentEmail: string
-	} | null>(null)
+	const [selectedStudents, setSelectedStudents] = useState<
+		{ studentId: string; studentFullName: string; studentEmail: string }[]
+	>([])
 	const [isEditQuestionDialogOpen, setIsEditQuestionDialogOpen] =
 		useState(false)
 	const [editingQuestion, setEditingQuestion] = useState<RoomQuestion | null>(
@@ -959,27 +962,30 @@ export default function AdminRoomDetailPage() {
 		})
 	}
 
-	const handleAddStudent = () => {
-		if (!studentIdToAdd.trim()) {
+	const handleAddStudents = () => {
+		if (selectedStudents.length === 0) {
 			toast({
 				title: 'Lỗi',
-				description: 'Vui lòng nhập ID học sinh',
+				description: 'Vui lòng chọn ít nhất một học sinh',
 				variant: 'destructive'
 			})
 			return
 		}
 
-		addStudent(studentIdToAdd.trim(), {
-			onSuccess: () => {
+		const studentIds = selectedStudents.map(s => s.studentId)
+		addStudents(studentIds, {
+			onSuccess: (response: {
+				data?: { added?: number; skipped?: number }
+			}) => {
+				const { added, skipped } = response.data || {}
 				toast({
 					title: 'Thành công',
-					description: selectedStudent
-						? `Đã thêm ${selectedStudent.studentFullName} vào phòng thi`
-						: 'Đã thêm học sinh vào phòng thi'
+					description: `Đã thêm ${
+						added || selectedStudents.length
+					} học sinh vào phòng thi${skipped ? ` (${skipped} bị bỏ qua)` : ''}`
 				})
-				setStudentIdToAdd('')
 				setStudentSearchQuery('')
-				setSelectedStudent(null)
+				setSelectedStudents([])
 				setIsAddStudentDialogOpen(false)
 			},
 			onError: (err: Error) => {
@@ -989,6 +995,20 @@ export default function AdminRoomDetailPage() {
 					variant: 'destructive'
 				})
 			}
+		})
+	}
+
+	const toggleStudentSelection = (student: {
+		studentId: string
+		studentFullName: string
+		studentEmail: string
+	}) => {
+		setSelectedStudents(prev => {
+			const exists = prev.find(s => s.studentId === student.studentId)
+			if (exists) {
+				return prev.filter(s => s.studentId !== student.studentId)
+			}
+			return [...prev, student]
 		})
 	}
 
@@ -1163,7 +1183,7 @@ export default function AdminRoomDetailPage() {
 
 				<TabsContent value="participants">
 					<Card>
-								<CardHeader className="flex flex-row items-center justify-between">
+						<CardHeader className="flex flex-row items-center justify-between">
 							<div>
 								<CardTitle className="flex items-center gap-2">
 									<Users className="h-5 w-5" />
@@ -1541,7 +1561,7 @@ export default function AdminRoomDetailPage() {
 				open={!!banConfirmUser}
 				onOpenChange={() => setBanConfirmUser(null)}
 			>
-						<AlertDialogContent>
+				<AlertDialogContent>
 					<AlertDialogHeader>
 						<AlertDialogTitle>Confirm ban student</AlertDialogTitle>
 						<AlertDialogDescription>
@@ -1564,528 +1584,6 @@ export default function AdminRoomDetailPage() {
 								<Ban className="h-4 w-4 mr-2" />
 							)}
 							Confirm ban
-						</AlertDialogAction>
-					</AlertDialogFooter>
-				</AlertDialogContent>
-			</AlertDialog>
-
-			{/* Edit Room Dialog */}
-
-	return (
-		<div className="container mx-auto p-6">
-			{/* Header */}
-			<div className="mb-6">
-				<Link
-					href="/admin/rooms"
-					className="mb-4 inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
-				>
-					<ArrowLeft className="mr-2 h-4 w-4" />
-					Quay lại danh sách phòng
-				</Link>
-				<div className="flex items-center justify-between">
-					<div>
-						<h1 className="text-2xl font-bold">{room.name}</h1>
-						<p className="text-muted-foreground">Mã phòng: {room.code}</p>
-					</div>
-					<div className="flex items-center gap-2">
-						<Badge variant="outline" className="text-sm">
-							{openDT.date} {openDT.time} - {closeDT.time}
-						</Badge>
-						<Button variant="outline" size="sm" onClick={openEditDialog}>
-							<Settings className="mr-2 h-4 w-4" />
-							Chỉnh sửa phòng
-						</Button>
-					</div>
-				</div>
-			</div>
-
-			{/* Room Info Card */}
-			<Card className="mb-6">
-				<CardHeader>
-					<CardTitle>Thông tin phòng thi</CardTitle>
-				</CardHeader>
-				<CardContent>
-					<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-						<div>
-							<p className="text-xs text-muted-foreground">Mã phòng</p>
-							<p className="font-mono font-bold text-primary">{room.code}</p>
-						</div>
-						<div>
-							<p className="text-xs text-muted-foreground">Tên phòng</p>
-							<p className="font-medium">{room.name}</p>
-						</div>
-						<div>
-							<p className="text-xs text-muted-foreground">Thời gian mở</p>
-							<p className="font-medium text-emerald-600">
-								{openDT.time} - {openDT.date}
-							</p>
-						</div>
-						<div>
-							<p className="text-xs text-muted-foreground">Thời gian đóng</p>
-							<p className="font-medium text-rose-600">
-								{closeDT.time} - {closeDT.date}
-							</p>
-						</div>
-					</div>
-				</CardContent>
-			</Card>
-
-			{/* Tabs */}
-			<Tabs defaultValue="questions" className="space-y-4">
-				<TabsList>
-					<TabsTrigger value="questions" className="gap-2">
-						<BookOpen className="h-4 w-4" />
-						Câu hỏi & Test Cases
-					</TabsTrigger>
-					<TabsTrigger value="participants" className="gap-2">
-						<Users className="h-4 w-4" />
-						Thí sinh tham gia
-					</TabsTrigger>
-					<TabsTrigger value="leaderboard" className="gap-2">
-						<Trophy className="h-4 w-4" />
-						Bảng xếp hạng
-					</TabsTrigger>
-				</TabsList>
-
-				<TabsContent value="questions">
-					<Card>
-						<CardHeader>
-							<CardTitle>Danh sách câu hỏi</CardTitle>
-							<CardDescription>
-								Quản lý câu hỏi và test cases của phòng thi (
-								{questions?.length || 0} câu hỏi)
-							</CardDescription>
-						</CardHeader>
-						<CardContent>
-							{questionsLoading ? (
-								<div className="flex justify-center py-8">
-									<Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-								</div>
-							) : questions && questions.length > 0 ? (
-								<div className="space-y-4">
-									{questions.map((q, idx) => (
-										<QuestionCard
-											key={q.uuid}
-											question={q}
-											index={idx}
-											isExpanded={expandedQuestions.has(q.uuid)}
-											onToggle={() => toggleQuestion(q.uuid)}
-											onEditQuestion={handleEditQuestion}
-										/>
-									))}
-								</div>
-							) : (
-								<div className="text-center py-8 text-muted-foreground">
-									Chưa có câu hỏi nào trong phòng thi này
-								</div>
-							)}
-						</CardContent>
-					</Card>
-				</TabsContent>
-
-				<TabsContent value="participants">
-					<Card>
-						<CardHeader className="flex flex-row items-center justify-between">
-							<div>
-								<CardTitle className="flex items-center gap-2">
-									<Users className="h-5 w-5" />
-									Danh sách thí sinh
-								</CardTitle>
-								<CardDescription>
-									Quản lý thí sinh tham gia phòng thi (
-									{participantsData?.participants?.length || 0} thí sinh)
-								</CardDescription>
-							</div>
-							<Button
-								onClick={() => setIsAddStudentDialogOpen(true)}
-								className="bg-[#40E0D0] hover:bg-[#40E0D0]/90 text-white"
-							>
-								<UserPlus className="h-4 w-4 mr-2" />
-								Thêm học sinh
-							</Button>
-						</CardHeader>
-						<CardContent>
-							{/* Search Bar */}
-							<div className="relative mb-4">
-								<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-								<Input
-									placeholder="Tìm kiếm theo tên hoặc email..."
-									value={searchQuery}
-									onChange={e => setSearchQuery(e.target.value)}
-									className="pl-10"
-								/>
-							</div>
-
-							{participantsLoading ? (
-								<div className="flex justify-center py-8">
-									<Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-								</div>
-							) : participantsData?.participants &&
-							  participantsData.participants.length > 0 ? (
-								<div className="grid gap-3">
-									{participantsData.participants
-										.filter(p => {
-											if (!searchQuery.trim()) return true
-											const query = searchQuery.toLowerCase()
-											return (
-												p.studentFullName?.toLowerCase().includes(query) ||
-												p.studentEmail?.toLowerCase().includes(query)
-											)
-										})
-										.map(p => {
-											const status = getParticipantStatus(
-												p.joinedAt,
-												room.openTime,
-												room.closeTime
-											)
-											return (
-												<Card
-													key={p.participantId}
-													className={`overflow-hidden transition-all hover:shadow-md ${
-														p.isBanned
-															? 'border-red-300 bg-red-50/50 dark:bg-red-950/10 dark:border-red-900/50'
-															: 'hover:border-primary/30'
-													}`}
-												>
-													<CardContent className="p-4">
-														<div className="flex items-center justify-between">
-															<div className="flex items-center gap-4">
-																{/* Avatar */}
-																<div
-																	className={`h-12 w-12 rounded-full flex items-center justify-center text-lg font-semibold shadow-sm ${
-																		p.isBanned
-																			? 'bg-red-100 text-red-600 dark:bg-red-900/30'
-																			: status.status === 'active'
-																			? 'bg-green-100 text-green-600 dark:bg-green-900/30'
-																			: status.status === 'not_joined'
-																			? 'bg-gray-100 text-gray-500 dark:bg-gray-800'
-																			: status.status === 'completed'
-																			? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30'
-																			: 'bg-primary/10 text-primary'
-																	}`}
-																>
-																	{p.isBanned ? (
-																		<Ban className="h-6 w-6" />
-																	) : status.status === 'active' ? (
-																		<CheckCircle2 className="h-6 w-6" />
-																	) : status.status === 'not_joined' ? (
-																		<AlertCircle className="h-6 w-6" />
-																	) : (
-																		p.studentFullName
-																			?.charAt(0)
-																			?.toUpperCase() || '?'
-																	)}
-																</div>
-
-																{/* Info */}
-																<div className="space-y-1">
-																	<div className="flex items-center gap-2">
-																		<h4 className="font-semibold text-base">
-																			{p.studentFullName}
-																		</h4>
-																		{p.isBanned && (
-																			<Badge
-																				variant="destructive"
-																				className="text-xs px-2"
-																			>
-																				<Ban className="h-3 w-3 mr-1" />
-																				Đã cấm
-																			</Badge>
-																		)}
-																	</div>
-																	<p className="text-sm text-muted-foreground">
-																		{p.studentEmail}
-																	</p>
-																</div>
-															</div>
-
-															{/* Status & Actions */}
-															<div className="flex items-center gap-4">
-																{/* Status Badge */}
-																<div className="text-right space-y-1">
-																	<Badge
-																		variant={
-																			status.status === 'active'
-																				? 'default'
-																				: status.status === 'not_joined'
-																				? 'secondary'
-																				: status.status === 'completed'
-																				? 'default'
-																				: 'outline'
-																		}
-																		className={`${
-																			status.status === 'active'
-																				? 'bg-green-500 hover:bg-green-600'
-																				: status.status === 'completed'
-																				? 'bg-blue-500 hover:bg-blue-600'
-																				: status.status === 'invalid'
-																				? 'border-yellow-500 text-yellow-600 bg-yellow-50'
-																				: ''
-																		}`}
-																	>
-																		{status.status === 'active' && (
-																			<span className="relative flex h-2 w-2 mr-1.5">
-																				<span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-																				<span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
-																			</span>
-																		)}
-																		{status.label}
-																	</Badge>
-																	{p.joinedAt && (
-																		<p className="text-xs text-muted-foreground">
-																			{new Date(p.joinedAt).toLocaleString(
-																				'vi-VN'
-																			)}
-																		</p>
-																	)}
-																</div>
-
-																{/* Action Button */}
-																{p.isBanned ? (
-																	<Button
-																		variant="outline"
-																		size="sm"
-																		onClick={() => handleUnbanUser(p)}
-																		disabled={isUnbanning}
-																		className="border-green-500 text-green-600 hover:bg-green-50 hover:text-green-700 min-w-[90px]"
-																	>
-																		{isUnbanning ? (
-																			<Loader2 className="h-4 w-4 animate-spin" />
-																		) : (
-																			<>
-																				<ShieldCheck className="h-4 w-4 mr-1.5" />
-																				Bỏ cấm
-																			</>
-																		)}
-																	</Button>
-																) : (
-																	<Button
-																		variant="outline"
-																		size="sm"
-																		onClick={() => setBanConfirmUser(p)}
-																		disabled={isBanning}
-																		className="border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700 hover:border-red-400 min-w-[90px]"
-																	>
-																		<Ban className="h-4 w-4 mr-1.5" />
-																		Cấm
-																	</Button>
-																)}
-															</div>
-														</div>
-													</CardContent>
-												</Card>
-											)
-										})}
-								</div>
-							) : (
-								<div className="text-center py-12 text-muted-foreground">
-									<Users className="h-12 w-12 mx-auto mb-3 opacity-30" />
-									<p>Chưa có thí sinh nào tham gia phòng thi này</p>
-								</div>
-							)}
-						</CardContent>
-					</Card>
-				</TabsContent>
-
-				<TabsContent value="leaderboard">
-					<Card>
-						<CardHeader>
-							<CardTitle className="flex items-center gap-2">
-								<Trophy className="h-5 w-5 text-yellow-500" />
-								Bảng xếp hạng
-							</CardTitle>
-							<CardDescription>
-								Xếp hạng theo điểm số từ cao đến thấp
-							</CardDescription>
-						</CardHeader>
-						<CardContent>
-							{scoresLoading ? (
-								<div className="flex justify-center py-8">
-									<Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-								</div>
-							) : scoresData?.students && scoresData.students.length > 0 ? (
-								<div className="space-y-3">
-									{(() => {
-										// Tách học sinh có điểm và không có điểm
-										const studentsWithScore = [...scoresData.students]
-											.filter(s => s.totalScore > 0)
-											.sort((a, b) => b.totalScore - a.totalScore)
-										const studentsWithoutScore = [
-											...scoresData.students
-										].filter(s => s.totalScore === 0)
-
-										return [...studentsWithScore, ...studentsWithoutScore].map(
-											student => {
-												// Chỉ xếp hạng cho học sinh có điểm
-												const hasScore = student.totalScore > 0
-												const rank = hasScore
-													? studentsWithScore.findIndex(
-															s => s.studentId === student.studentId
-													  ) + 1
-													: 0
-												const isTop3 = hasScore && rank <= 3
-												return (
-													<div
-														key={student.studentId}
-														className={`rounded-lg border p-4 transition-all ${
-															rank === 1
-																? 'bg-gradient-to-r from-yellow-50 to-amber-50 border-yellow-300 dark:from-yellow-950/20 dark:to-amber-950/20'
-																: rank === 2
-																? 'bg-gradient-to-r from-gray-50 to-slate-50 border-gray-300 dark:from-gray-950/20 dark:to-slate-950/20'
-																: rank === 3
-																? 'bg-gradient-to-r from-orange-50 to-amber-50 border-orange-300 dark:from-orange-950/20 dark:to-amber-950/20'
-																: 'hover:bg-muted/50'
-														}`}
-													>
-														<div className="flex items-center justify-between">
-															<div className="flex items-center gap-4">
-																{/* Rank Badge */}
-																<div
-																	className={`h-12 w-12 rounded-full flex items-center justify-center font-bold text-lg ${
-																		rank === 1
-																			? 'bg-yellow-400 text-yellow-900'
-																			: rank === 2
-																			? 'bg-gray-300 text-gray-700'
-																			: rank === 3
-																			? 'bg-orange-400 text-orange-900'
-																			: 'bg-muted text-muted-foreground'
-																	}`}
-																>
-																	{isTop3 ? (
-																		<Trophy
-																			className={`h-6 w-6 ${
-																				rank === 1
-																					? 'text-yellow-900'
-																					: rank === 2
-																					? 'text-gray-700'
-																					: 'text-orange-900'
-																			}`}
-																		/>
-																	) : hasScore ? (
-																		`#${rank}`
-																	) : (
-																		'-'
-																	)}
-																</div>
-
-																{/* Student Info */}
-																<div>
-																	<div className="flex items-center gap-2">
-																		<h4 className="font-semibold text-base">
-																			{student.studentFullName}
-																		</h4>
-																		{isTop3 && (
-																			<Badge
-																				variant={
-																					rank === 1 ? 'default' : 'secondary'
-																				}
-																				className={
-																					rank === 1
-																						? 'bg-yellow-500 hover:bg-yellow-600'
-																						: rank === 2
-																						? 'bg-gray-400 hover:bg-gray-500'
-																						: 'bg-orange-500 hover:bg-orange-600'
-																				}
-																			>
-																				Top {rank}
-																			</Badge>
-																		)}
-																	</div>
-																	<p className="text-sm text-muted-foreground">
-																		{student.studentEmail}
-																	</p>
-																</div>
-															</div>
-
-															{/* Score */}
-															<div className="text-right">
-																<p
-																	className={`text-2xl font-bold ${
-																		isTop3 ? 'text-primary' : ''
-																	}`}
-																>
-																	{student.totalScore}
-																</p>
-																<p className="text-xs text-muted-foreground">
-																	điểm
-																</p>
-															</div>
-														</div>
-
-														{/* Questions Progress */}
-														{student.questions &&
-															student.questions.length > 0 && (
-																<div className="mt-4 pt-4 border-t">
-																	<p className="text-xs text-muted-foreground mb-2">
-																		Chi tiết bài làm:
-																	</p>
-																	<div className="flex flex-wrap gap-2">
-																		{student.questions.map((q, qIdx) => (
-																			<div
-																				key={q.questionId}
-																				className={`px-3 py-1.5 rounded-md text-xs font-medium ${
-																					q.solved
-																						? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-																						: q.myScore > 0
-																						? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
-																						: 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'
-																				}`}
-																				title={q.title}
-																			>
-																				Q{qIdx + 1}: {q.myScore}/{q.maxScore}
-																				{q.solved && (
-																					<CheckCircle2 className="inline h-3 w-3 ml-1" />
-																				)}
-																			</div>
-																		))}
-																	</div>
-																</div>
-															)}
-													</div>
-												)
-											}
-										)
-									})()}
-								</div>
-							) : (
-								<div className="text-center py-12 text-muted-foreground">
-									<Trophy className="h-12 w-12 mx-auto mb-3 opacity-30" />
-									<p>Chưa có dữ liệu điểm số</p>
-								</div>
-							)}
-						</CardContent>
-					</Card>
-				</TabsContent>
-			</Tabs>
-
-			{/* Ban Confirm Dialog */}
-			<AlertDialog
-				open={!!banConfirmUser}
-				onOpenChange={() => setBanConfirmUser(null)}
-			>
-				<AlertDialogContent>
-					<AlertDialogHeader>
-						<AlertDialogTitle>Xác nhận cấm thí sinh</AlertDialogTitle>
-						<AlertDialogDescription>
-							Bạn có chắc chắn muốn cấm{' '}
-							<span className="font-semibold">
-								{banConfirmUser?.studentFullName}
-							</span>{' '}
-							khỏi phòng thi? Thí sinh sẽ không thể tiếp tục làm bài.
-						</AlertDialogDescription>
-					</AlertDialogHeader>
-					<AlertDialogFooter>
-						<AlertDialogCancel>Hủy</AlertDialogCancel>
-						<AlertDialogAction
-							onClick={() => banConfirmUser && handleBanUser(banConfirmUser)}
-							className="bg-red-500 hover:bg-red-600"
-						>
-							{isBanning ? (
-								<Loader2 className="h-4 w-4 animate-spin mr-2" />
-							) : (
-								<Ban className="h-4 w-4 mr-2" />
-							)}
-							Xác nhận cấm
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>
@@ -2203,9 +1701,7 @@ export default function AdminRoomDetailPage() {
 			>
 				<DialogContent>
 					<DialogHeader>
-						<DialogTitle>
-							Edit question {editingQuestion?.title}
-						</DialogTitle>
+						<DialogTitle>Edit question {editingQuestion?.title}</DialogTitle>
 						<DialogDescription>Update question information</DialogDescription>
 					</DialogHeader>
 					<div className="grid gap-4 py-4">
@@ -2313,23 +1809,22 @@ export default function AdminRoomDetailPage() {
 				</DialogContent>
 			</Dialog>
 
-			{/* Add Student Dialog */}
+			{/* Add Students Dialog */}
 			<Dialog
 				open={isAddStudentDialogOpen}
 				onOpenChange={open => {
 					setIsAddStudentDialogOpen(open)
 					if (!open) {
-						setStudentIdToAdd('')
 						setStudentSearchQuery('')
-						setSelectedStudent(null)
+						setSelectedStudents([])
 					}
 				}}
 			>
 				<DialogContent className="max-w-lg">
 					<DialogHeader>
-						<DialogTitle>Add student to room</DialogTitle>
+						<DialogTitle>Add students to room</DialogTitle>
 						<DialogDescription>
-							Search and select a student to add to this room
+							Search and select multiple students to add to this room
 						</DialogDescription>
 					</DialogHeader>
 					<div className="space-y-4 py-4">
@@ -2349,7 +1844,14 @@ export default function AdminRoomDetailPage() {
 
 						{/* Student List */}
 						<div className="space-y-2">
-							<Label>Student list</Label>
+							<div className="flex items-center justify-between">
+								<Label>Student list</Label>
+								{selectedStudents.length > 0 && (
+									<Badge variant="secondary">
+										{selectedStudents.length} selected
+									</Badge>
+								)}
+							</div>
 							<ScrollArea className="h-[250px] border rounded-md">
 								{usersLoading ? (
 									<div className="flex justify-center py-8">
@@ -2375,45 +1877,49 @@ export default function AdminRoomDetailPage() {
 													) || []
 												return !existingIds.includes(user.studentId)
 											})
-											.map(user => (
-												<div
-													key={user.studentId}
-													className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors ${
-														selectedStudent?.studentId === user.studentId
-															? 'bg-primary/10 border border-primary'
-															: 'hover:bg-muted'
-													}`}
-													onClick={() => {
-														setSelectedStudent({
-															studentId: user.studentId,
-															studentFullName: user.studentFullName,
-															studentEmail: user.studentEmail
-														})
-														setStudentIdToAdd(user.studentId)
-													}}
-												>
-													<div className="flex items-center gap-3">
-														<div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-															<span className="font-semibold text-primary">
-																{user.studentFullName
-																	?.charAt(0)
-																	?.toUpperCase() || '?'}
-															</span>
+											.map(user => {
+												const isSelected = selectedStudents.some(
+													s => s.studentId === user.studentId
+												)
+												return (
+													<div
+														key={user.studentId}
+														className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors ${
+															isSelected
+																? 'bg-primary/10 border border-primary'
+																: 'hover:bg-muted'
+														}`}
+														onClick={() =>
+															toggleStudentSelection({
+																studentId: user.studentId,
+																studentFullName: user.studentFullName,
+																studentEmail: user.studentEmail
+															})
+														}
+													>
+														<div className="flex items-center gap-3">
+															<div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+																<span className="font-semibold text-primary">
+																	{user.studentFullName
+																		?.charAt(0)
+																		?.toUpperCase() || '?'}
+																</span>
+															</div>
+															<div>
+																<p className="font-medium text-sm">
+																	{user.studentFullName}
+																</p>
+																<p className="text-xs text-muted-foreground">
+																	{user.studentEmail}
+																</p>
+															</div>
 														</div>
-														<div>
-															<p className="font-medium text-sm">
-																{user.studentFullName}
-															</p>
-															<p className="text-xs text-muted-foreground">
-																{user.studentEmail}
-															</p>
-														</div>
+														{isSelected && (
+															<Check className="h-5 w-5 text-primary" />
+														)}
 													</div>
-													{selectedStudent?.studentId === user.studentId && (
-														<Check className="h-5 w-5 text-primary" />
-													)}
-												</div>
-											))}
+												)
+											})}
 										{usersData.data
 											.filter(user => {
 												if (!studentSearchQuery.trim()) return true
@@ -2444,14 +1950,25 @@ export default function AdminRoomDetailPage() {
 							</ScrollArea>
 						</div>
 
-						{/* Selected Student Info */}
-						{selectedStudent && (
+						{/* Selected Students Info */}
+						{selectedStudents.length > 0 && (
 							<div className="bg-muted/50 rounded-lg p-3">
-								<p className="text-xs text-muted-foreground mb-1">Selected:</p>
-								<p className="font-medium">{selectedStudent.studentFullName}</p>
-								<p className="text-sm text-muted-foreground">
-									{selectedStudent.studentEmail}
+								<p className="text-xs text-muted-foreground mb-2">
+									Selected ({selectedStudents.length}):
 								</p>
+								<div className="flex flex-wrap gap-2">
+									{selectedStudents.map(s => (
+										<Badge
+											key={s.studentId}
+											variant="secondary"
+											className="cursor-pointer hover:bg-destructive/20"
+											onClick={() => toggleStudentSelection(s)}
+										>
+											{s.studentFullName}
+											<span className="ml-1 text-muted-foreground">×</span>
+										</Badge>
+									))}
+								</div>
 							</div>
 						)}
 					</div>
@@ -2463,16 +1980,17 @@ export default function AdminRoomDetailPage() {
 							Cancel
 						</Button>
 						<Button
-							onClick={handleAddStudent}
-							disabled={isAddingStudent || !studentIdToAdd.trim()}
+							onClick={handleAddStudents}
+							disabled={isAddingStudents || selectedStudents.length === 0}
 							className="bg-[#40E0D0] hover:bg-[#40E0D0]/90 text-white"
 						>
-							{isAddingStudent ? (
+							{isAddingStudents ? (
 								<Loader2 className="h-4 w-4 animate-spin mr-2" />
 							) : (
 								<UserPlus className="h-4 w-4 mr-2" />
 							)}
-							Add student
+							Add {selectedStudents.length > 0 ? selectedStudents.length : ''}{' '}
+							student{selectedStudents.length !== 1 ? 's' : ''}
 						</Button>
 					</DialogFooter>
 				</DialogContent>

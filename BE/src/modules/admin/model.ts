@@ -48,17 +48,25 @@ export const LeaderboardResponseSchema = t.Object({
 
 export type LeaderboardResponse = typeof LeaderboardResponseSchema.static
 
-// Schema for add student to room request
+// Schema for add student to room request (supports multiple students)
 export const AddStudentToRoomSchema = t.Object({
 	roomId: t.String(),
-	studentId: t.String()
+	studentIds: t.Array(t.String(), { minItems: 1 })
 })
 
 export type AddStudentToRoomDto = typeof AddStudentToRoomSchema.static
 
 // Schema for add student to room response
 export const AddStudentToRoomResponseSchema = t.Object({
-	message: t.String()
+	message: t.String(),
+	added: t.Number(),
+	skipped: t.Number(),
+	errors: t.Array(
+		t.Object({
+			studentId: t.String(),
+			reason: t.String()
+		})
+	)
 })
 
 export type AddStudentToRoomResponse =

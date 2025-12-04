@@ -246,7 +246,7 @@ export const adminService = {
 	},
 
 	addStudentToRoom: async ({ body, user, set }: any) => {
-		const { roomId, studentId } = body as AddStudentToRoomDto
+		const { roomId, studentIds } = body as AddStudentToRoomDto
 
 		// Check if room exists
 		const [room] = await db
@@ -279,51 +279,78 @@ export const adminService = {
 			)
 		}
 
-		// Check if student exists
-		const [student] = await db
-			.select()
-			.from(accounts)
-			.where(eq(accounts.uuid, studentId))
-
-		if (!student) {
-			set.status = 404
-			return wrapResponse(null, 404, '', 'Student not found')
-		}
-
-		// Check if student is not an admin
-		if (student.role === 'ADMIN') {
-			set.status = 400
-			return wrapResponse(null, 400, '', 'Cannot add admin to room')
-		}
-
-		// Check if student is already in the room
-		const [existingParticipant] = await db
-			.select()
+		// Get existing participants in the room
+		const existingParticipants = await db
+			.select({ accountUuid: roomParticipants.accountUuid })
 			.from(roomParticipants)
-			.where(
-				and(
-					eq(roomParticipants.roomUuid, roomId),
-					eq(roomParticipants.accountUuid, studentId)
-				)
-			)
+			.where(eq(roomParticipants.roomUuid, roomId))
 
-		if (existingParticipant) {
-			set.status = 409
-			return wrapResponse(null, 409, '', 'Student is already in this room')
+		const existingStudentIds = new Set(
+			existingParticipants.map(p => p.accountUuid)
+		)
+
+		// Process each student
+		let added = 0
+		let skipped = 0
+		const errors: { studentId: string; reason: string }[] = []
+		const studentsToAdd: {
+			roomUuid: string
+			accountUuid: string
+			joinedAt: null
+		}[] = []
+
+		for (const studentId of studentIds) {
+			// Check if already in room
+			if (existingStudentIds.has(studentId)) {
+				skipped++
+				errors.push({ studentId, reason: 'Already in room' })
+				continue
+			}
+
+			// Check if student exists
+			const [student] = await db
+				.select()
+				.from(accounts)
+				.where(eq(accounts.uuid, studentId))
+
+			if (!student) {
+				skipped++
+				errors.push({ studentId, reason: 'Student not found' })
+				continue
+			}
+
+			// Check if student is not an admin
+			if (student.role === 'ADMIN') {
+				skipped++
+				errors.push({ studentId, reason: 'Cannot add admin to room' })
+				continue
+			}
+
+			studentsToAdd.push({
+				roomUuid: roomId,
+				accountUuid: studentId,
+				joinedAt: null
+			})
 		}
 
-		// Add student to room with joined_at = null (student hasn't joined yet)
-		await db.insert(roomParticipants).values({
-			roomUuid: roomId,
-			accountUuid: studentId,
-			joinedAt: null
-		})
+		// Batch insert all valid students
+		if (studentsToAdd.length > 0) {
+			await db.insert(roomParticipants).values(studentsToAdd)
+			added = studentsToAdd.length
+		}
 
 		const response: AddStudentToRoomResponse = {
-			message: 'success'
+			message: added > 0 ? 'success' : 'no students added',
+			added,
+			skipped,
+			errors
 		}
 
-		return wrapResponse(response, 201, 'Student added to room successfully')
+		return wrapResponse(
+			response,
+			added > 0 ? 201 : 200,
+			`${added} student(s) added to room successfully`
+		)
 	},
 
 	// Get all participants in a room
