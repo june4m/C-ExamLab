@@ -383,7 +383,7 @@ const getParticipantStatus = (
 	closeTime: string
 ) => {
 	if (!joinedAt) {
-		return { status: 'not_joined', label: 'Chưa vào phòng', color: 'gray' }
+		return { status: 'not_joined', label: 'Not joined', color: 'gray' }
 	}
 
 	const joinTime = new Date(joinedAt).getTime()
@@ -393,12 +393,12 @@ const getParticipantStatus = (
 
 	if (joinTime >= examStart && joinTime <= examEnd) {
 		if (now >= examStart && now <= examEnd) {
-			return { status: 'active', label: 'Đang tham gia', color: 'green' }
+			return { status: 'active', label: 'In progress', color: 'green' }
 		}
-		return { status: 'completed', label: 'Đã hoàn thành', color: 'blue' }
+		return { status: 'completed', label: 'Completed', color: 'blue' }
 	}
 
-	return { status: 'invalid', label: 'Vào sai thời gian', color: 'yellow' }
+	return { status: 'invalid', label: 'Joined at wrong time', color: 'yellow' }
 }
 
 // Question Card Component with TestCase
@@ -493,7 +493,7 @@ function QuestionCard({
 						<div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground flex-wrap">
 							<span className="flex items-center gap-1">
 								<Trophy className="h-3.5 w-3.5" />
-								{question.score} điểm
+								{question.score} pts
 							</span>
 							<span className="flex items-center gap-1">
 								<Timer className="h-3.5 w-3.5" />
@@ -504,7 +504,7 @@ function QuestionCard({
 								{question.memoryLimit}KB
 							</span>
 							<span className="flex items-center gap-1 text-xs">
-								Thứ tự: {question.order}
+								Order: {question.order}
 							</span>
 						</div>
 					</div>
@@ -514,14 +514,14 @@ function QuestionCard({
 						variant="secondary"
 						className="bg-primary/10 text-primary font-semibold"
 					>
-						{question.score} điểm
+						{question.score} pts
 					</Badge>
 					<Button
 						variant="ghost"
 						size="icon"
 						className="h-8 w-8"
 						onClick={() => setShowQuestionInfo(true)}
-						title="Xem chi tiết"
+						title="View details"
 					>
 						<Info className="h-4 w-4" />
 					</Button>
@@ -530,7 +530,7 @@ function QuestionCard({
 						size="icon"
 						className="h-8 w-8"
 						onClick={() => onEditQuestion(question)}
-						title="Chỉnh sửa"
+						title="Edit question"
 					>
 						<Pencil className="h-4 w-4" />
 					</Button>
@@ -543,12 +543,12 @@ function QuestionCard({
 						{isExpanded ? (
 							<>
 								<ChevronUp className="h-4 w-4" />
-								Ẩn TestCase
+								Hide test cases
 							</>
 						) : (
 							<>
 								<Eye className="h-4 w-4" />
-								Xem TestCase
+								View test cases
 							</>
 						)}
 					</Button>
@@ -559,8 +559,8 @@ function QuestionCard({
 			<Dialog open={showQuestionInfo} onOpenChange={setShowQuestionInfo}>
 				<DialogContent className="max-w-lg">
 					<DialogHeader>
-						<DialogTitle>Chi tiết câu hỏi</DialogTitle>
-						<DialogDescription>Thông tin đầy đủ của câu hỏi</DialogDescription>
+						<DialogTitle>Question details</DialogTitle>
+						<DialogDescription>Full information about this question</DialogDescription>
 					</DialogHeader>
 					<div className="space-y-4">
 						<div className="grid grid-cols-2 gap-4">
@@ -573,18 +573,18 @@ function QuestionCard({
 								</p>
 							</div> */}
 							<div>
-								<Label className="text-xs text-muted-foreground">Thứ tự</Label>
+								<Label className="text-xs text-muted-foreground">Order</Label>
 								<p className="font-medium">{question.order}</p>
 							</div>
 						</div>
 						<div>
-							<Label className="text-xs text-muted-foreground">Tiêu đề</Label>
+							<Label className="text-xs text-muted-foreground">Title</Label>
 							<p className="font-semibold">{question.title}</p>
 						</div>
 						<div className="grid grid-cols-3 gap-4">
 							<div>
-								<Label className="text-xs text-muted-foreground">Điểm</Label>
-								<p className="font-medium text-primary">{question.score}</p>
+								<Label className="text-xs text-muted-foreground">Score</Label>
+								<p className="font-medium text-primary">{question.score} pts</p>
 							</div>
 							<div>
 								<Label className="text-xs text-muted-foreground">
@@ -602,7 +602,7 @@ function QuestionCard({
 						{question.descriptionPath && (
 							<div>
 								<Label className="text-xs text-muted-foreground">
-									Đường dẫn mô tả
+									Description path
 								</Label>
 								<p className="font-mono text-sm break-all">
 									{question.descriptionPath}
@@ -610,14 +610,14 @@ function QuestionCard({
 							</div>
 						)}
 						<div>
-							<Label className="text-xs text-muted-foreground">Ngày tạo</Label>
+							<Label className="text-xs text-muted-foreground">Created at</Label>
 							<p className="text-sm">
 								{new Date(question.createdAt).toLocaleString('vi-VN')}
 							</p>
 						</div>
 						<div>
 							<Label className="text-xs text-muted-foreground">
-								Số Test Cases
+								Number of test cases
 							</Label>
 							<p className="font-medium">{testCases.length}</p>
 						</div>
@@ -627,7 +627,7 @@ function QuestionCard({
 							variant="outline"
 							onClick={() => setShowQuestionInfo(false)}
 						>
-							Đóng
+							Close
 						</Button>
 						<Button
 							onClick={() => {
@@ -637,7 +637,7 @@ function QuestionCard({
 							className="bg-[#40E0D0] hover:bg-[#40E0D0]/90 text-white"
 						>
 							<Pencil className="h-4 w-4 mr-1" />
-							Chỉnh sửa
+							Edit
 						</Button>
 					</DialogFooter>
 				</DialogContent>
@@ -668,7 +668,7 @@ function QuestionCard({
 										<div className="flex items-center gap-2">
 											{tc.is_hidden === 1 && (
 												<Badge variant="outline" className="text-xs">
-													Ẩn
+													Hidden
 												</Badge>
 											)}
 											<Button
@@ -699,20 +699,20 @@ function QuestionCard({
 												</AlertDialogTrigger>
 												<AlertDialogContent>
 													<AlertDialogHeader>
-														<AlertDialogTitle>Xóa test case?</AlertDialogTitle>
-														<AlertDialogDescription>
-															Hành động này không thể hoàn tác.
-														</AlertDialogDescription>
+													<AlertDialogTitle>Delete test case?</AlertDialogTitle>
+													<AlertDialogDescription>
+														This action cannot be undone.
+													</AlertDialogDescription>
 													</AlertDialogHeader>
 													<AlertDialogFooter>
-														<AlertDialogCancel>Hủy</AlertDialogCancel>
+													<AlertDialogCancel>Cancel</AlertDialogCancel>
 														<AlertDialogAction
 															onClick={() =>
 																handleDeleteTestCase(tc.testcaseId)
 															}
 															className="bg-destructive hover:bg-destructive/90"
 														>
-															Xóa
+															Delete
 														</AlertDialogAction>
 													</AlertDialogFooter>
 												</AlertDialogContent>
@@ -792,7 +792,7 @@ function QuestionCard({
 													size="sm"
 													onClick={() => setEditingTestCase(null)}
 												>
-													Hủy
+													Cancel
 												</Button>
 												<Button
 													size="sm"
@@ -803,7 +803,7 @@ function QuestionCard({
 													{updateTestCase.isPending && (
 														<Loader2 className="h-4 w-4 animate-spin mr-1" />
 													)}
-													Lưu
+													Save
 												</Button>
 											</div>
 										</div>
@@ -832,7 +832,7 @@ function QuestionCard({
 						</div>
 					) : (
 						<div className="text-center py-4 text-sm text-muted-foreground">
-							Chưa có test case nào cho câu hỏi này
+							No test cases for this question yet
 						</div>
 					)}
 				</div>
@@ -1037,11 +1037,11 @@ export default function AdminRoomDetailPage() {
 		return (
 			<div className="container mx-auto p-6">
 				<div className="rounded-md bg-destructive/10 p-4 text-center text-destructive">
-					{error?.message || 'Không tìm thấy phòng thi'}
+					{error?.message || 'Exam room not found'}
 				</div>
 				<div className="mt-4 text-center">
 					<Button variant="outline" onClick={() => router.push('/admin/rooms')}>
-						Quay lại danh sách
+						Back to rooms list
 					</Button>
 				</div>
 			</div>
@@ -1060,12 +1060,12 @@ export default function AdminRoomDetailPage() {
 					className="mb-4 inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
 				>
 					<ArrowLeft className="mr-2 h-4 w-4" />
-					Quay lại danh sách phòng
+					Back to rooms list
 				</Link>
 				<div className="flex items-center justify-between">
 					<div>
 						<h1 className="text-2xl font-bold">{room.name}</h1>
-						<p className="text-muted-foreground">Mã phòng: {room.code}</p>
+						<p className="text-muted-foreground">Room code: {room.code}</p>
 					</div>
 					<div className="flex items-center gap-2">
 						<Badge variant="outline" className="text-sm">
@@ -1073,7 +1073,7 @@ export default function AdminRoomDetailPage() {
 						</Badge>
 						<Button variant="outline" size="sm" onClick={openEditDialog}>
 							<Settings className="mr-2 h-4 w-4" />
-							Chỉnh sửa phòng
+							Edit room
 						</Button>
 					</div>
 				</div>
@@ -1082,26 +1082,26 @@ export default function AdminRoomDetailPage() {
 			{/* Room Info Card */}
 			<Card className="mb-6">
 				<CardHeader>
-					<CardTitle>Thông tin phòng thi</CardTitle>
+					<CardTitle>Exam room information</CardTitle>
 				</CardHeader>
 				<CardContent>
 					<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
 						<div>
-							<p className="text-xs text-muted-foreground">Mã phòng</p>
+							<p className="text-xs text-muted-foreground">Room code</p>
 							<p className="font-mono font-bold text-primary">{room.code}</p>
 						</div>
 						<div>
-							<p className="text-xs text-muted-foreground">Tên phòng</p>
+							<p className="text-xs text-muted-foreground">Room name</p>
 							<p className="font-medium">{room.name}</p>
 						</div>
 						<div>
-							<p className="text-xs text-muted-foreground">Thời gian mở</p>
+							<p className="text-xs text-muted-foreground">Open time</p>
 							<p className="font-medium text-emerald-600">
 								{openDT.time} - {openDT.date}
 							</p>
 						</div>
 						<div>
-							<p className="text-xs text-muted-foreground">Thời gian đóng</p>
+							<p className="text-xs text-muted-foreground">Close time</p>
 							<p className="font-medium text-rose-600">
 								{closeDT.time} - {closeDT.date}
 							</p>
@@ -1115,25 +1115,25 @@ export default function AdminRoomDetailPage() {
 				<TabsList>
 					<TabsTrigger value="questions" className="gap-2">
 						<BookOpen className="h-4 w-4" />
-						Câu hỏi & Test Cases
+						Questions & Test cases
 					</TabsTrigger>
 					<TabsTrigger value="participants" className="gap-2">
 						<Users className="h-4 w-4" />
-						Thí sinh tham gia
+						Participants
 					</TabsTrigger>
 					<TabsTrigger value="leaderboard" className="gap-2">
 						<Trophy className="h-4 w-4" />
-						Bảng xếp hạng
+						Leaderboard
 					</TabsTrigger>
 				</TabsList>
 
 				<TabsContent value="questions">
 					<Card>
 						<CardHeader>
-							<CardTitle>Danh sách câu hỏi</CardTitle>
+							<CardTitle>Question list</CardTitle>
 							<CardDescription>
-								Quản lý câu hỏi và test cases của phòng thi (
-								{questions?.length || 0} câu hỏi)
+								Manage questions and test cases in this room (
+								{questions?.length || 0} questions)
 							</CardDescription>
 						</CardHeader>
 						<CardContent>
@@ -1156,7 +1156,7 @@ export default function AdminRoomDetailPage() {
 								</div>
 							) : (
 								<div className="text-center py-8 text-muted-foreground">
-									Chưa có câu hỏi nào trong phòng thi này
+									No questions in this room yet
 								</div>
 							)}
 						</CardContent>
@@ -1165,15 +1165,15 @@ export default function AdminRoomDetailPage() {
 
 				<TabsContent value="participants">
 					<Card>
-						<CardHeader className="flex flex-row items-center justify-between">
+								<CardHeader className="flex flex-row items-center justify-between">
 							<div>
 								<CardTitle className="flex items-center gap-2">
 									<Users className="h-5 w-5" />
-									Danh sách thí sinh
+									Participants
 								</CardTitle>
 								<CardDescription>
-									Quản lý thí sinh tham gia phòng thi (
-									{participantsData?.participants?.length || 0} thí sinh)
+									Manage students participating in this room (
+									{participantsData?.participants?.length || 0} students)
 								</CardDescription>
 							</div>
 							<Button
@@ -1181,7 +1181,7 @@ export default function AdminRoomDetailPage() {
 								className="bg-[#40E0D0] hover:bg-[#40E0D0]/90 text-white"
 							>
 								<UserPlus className="h-4 w-4 mr-2" />
-								Thêm học sinh
+								Add student
 							</Button>
 						</CardHeader>
 						<CardContent>
@@ -1189,7 +1189,7 @@ export default function AdminRoomDetailPage() {
 							<div className="relative mb-4">
 								<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 								<Input
-									placeholder="Tìm kiếm theo tên hoặc email..."
+									placeholder="Search by name or email..."
 									value={searchQuery}
 									onChange={e => setSearchQuery(e.target.value)}
 									className="pl-10"
@@ -1269,7 +1269,7 @@ export default function AdminRoomDetailPage() {
 																				className="text-xs px-2"
 																			>
 																				<Ban className="h-3 w-3 mr-1" />
-																				Đã cấm
+																				Banned
 																			</Badge>
 																		)}
 																	</div>
@@ -1334,7 +1334,7 @@ export default function AdminRoomDetailPage() {
 																		) : (
 																			<>
 																				<ShieldCheck className="h-4 w-4 mr-1.5" />
-																				Bỏ cấm
+																				Unban
 																			</>
 																		)}
 																	</Button>
@@ -1347,7 +1347,7 @@ export default function AdminRoomDetailPage() {
 																		className="border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700 hover:border-red-400 min-w-[90px]"
 																	>
 																		<Ban className="h-4 w-4 mr-1.5" />
-																		Cấm
+																		Ban
 																	</Button>
 																)}
 															</div>
@@ -1360,7 +1360,7 @@ export default function AdminRoomDetailPage() {
 							) : (
 								<div className="text-center py-12 text-muted-foreground">
 									<Users className="h-12 w-12 mx-auto mb-3 opacity-30" />
-									<p>Chưa có thí sinh nào tham gia phòng thi này</p>
+									<p>No participants in this room yet</p>
 								</div>
 							)}
 						</CardContent>
@@ -1372,10 +1372,10 @@ export default function AdminRoomDetailPage() {
 						<CardHeader>
 							<CardTitle className="flex items-center gap-2">
 								<Trophy className="h-5 w-5 text-yellow-500" />
-								Bảng xếp hạng
+								Leaderboard
 							</CardTitle>
 							<CardDescription>
-								Xếp hạng theo điểm số từ cao đến thấp
+								Ranking by descending total score
 							</CardDescription>
 						</CardHeader>
 						<CardContent>
@@ -1487,7 +1487,7 @@ export default function AdminRoomDetailPage() {
 																	{student.totalScore}
 																</p>
 																<p className="text-xs text-muted-foreground">
-																	điểm
+																	points
 																</p>
 															</div>
 														</div>
@@ -1497,7 +1497,7 @@ export default function AdminRoomDetailPage() {
 															student.questions.length > 0 && (
 																<div className="mt-4 pt-4 border-t">
 																	<p className="text-xs text-muted-foreground mb-2">
-																		Chi tiết bài làm:
+																		Submission details:
 																	</p>
 																	<div className="flex flex-wrap gap-2">
 																		{student.questions.map((q, qIdx) => (
@@ -1530,7 +1530,7 @@ export default function AdminRoomDetailPage() {
 							) : (
 								<div className="text-center py-12 text-muted-foreground">
 									<Trophy className="h-12 w-12 mx-auto mb-3 opacity-30" />
-									<p>Chưa có dữ liệu điểm số</p>
+									<p>No score data yet</p>
 								</div>
 							)}
 						</CardContent>
@@ -1543,19 +1543,19 @@ export default function AdminRoomDetailPage() {
 				open={!!banConfirmUser}
 				onOpenChange={() => setBanConfirmUser(null)}
 			>
-				<AlertDialogContent>
+						<AlertDialogContent>
 					<AlertDialogHeader>
-						<AlertDialogTitle>Xác nhận cấm thí sinh</AlertDialogTitle>
+						<AlertDialogTitle>Confirm ban student</AlertDialogTitle>
 						<AlertDialogDescription>
-							Bạn có chắc chắn muốn cấm{' '}
+							Are you sure you want to ban{' '}
 							<span className="font-semibold">
 								{banConfirmUser?.studentFullName}
 							</span>{' '}
-							khỏi phòng thi? Thí sinh sẽ không thể tiếp tục làm bài.
+							from this room? The student will not be able to continue the exam.
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>
-						<AlertDialogCancel>Hủy</AlertDialogCancel>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
 						<AlertDialogAction
 							onClick={() => banConfirmUser && handleBanUser(banConfirmUser)}
 							className="bg-red-500 hover:bg-red-600"
@@ -1565,7 +1565,7 @@ export default function AdminRoomDetailPage() {
 							) : (
 								<Ban className="h-4 w-4 mr-2" />
 							)}
-							Xác nhận cấm
+							Confirm ban
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>
@@ -1575,12 +1575,12 @@ export default function AdminRoomDetailPage() {
 			<Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
 				<DialogContent className="max-w-md">
 					<DialogHeader>
-						<DialogTitle>Chỉnh sửa phòng thi</DialogTitle>
-						<DialogDescription>Cập nhật thông tin phòng thi</DialogDescription>
+						<DialogTitle>Edit exam room</DialogTitle>
+						<DialogDescription>Update exam room information</DialogDescription>
 					</DialogHeader>
 					<div className="space-y-4">
 						<div className="space-y-2">
-							<Label>Tên phòng thi</Label>
+							<Label>Room name</Label>
 							<Input
 								value={editForm.name}
 								onChange={e =>
@@ -1589,7 +1589,7 @@ export default function AdminRoomDetailPage() {
 							/>
 						</div>
 						<div className="space-y-2">
-							<Label>Thời gian mở</Label>
+							<Label>Open time</Label>
 							<div className="grid grid-cols-2 gap-2">
 								<div className="relative">
 									<Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -1621,7 +1621,7 @@ export default function AdminRoomDetailPage() {
 							</div>
 						</div>
 						<div className="space-y-2">
-							<Label>Thời gian đóng</Label>
+							<Label>Close time</Label>
 							<div className="grid grid-cols-2 gap-2">
 								<div className="relative">
 									<Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -1659,7 +1659,7 @@ export default function AdminRoomDetailPage() {
 							variant="outline"
 							onClick={() => setIsEditDialogOpen(false)}
 						>
-							Hủy
+							Cancel
 						</Button>
 						<Button onClick={handleUpdateRoom} disabled={isUpdating}>
 							{isUpdating ? (
@@ -1667,7 +1667,7 @@ export default function AdminRoomDetailPage() {
 							) : (
 								<Save className="mr-2 h-4 w-4" />
 							)}
-							Lưu thay đổi
+							Save changes
 						</Button>
 					</DialogFooter>
 				</DialogContent>
@@ -1684,23 +1684,23 @@ export default function AdminRoomDetailPage() {
 				<DialogContent>
 					<DialogHeader>
 						<DialogTitle>
-							Chỉnh sửa câu hỏi {editingQuestion?.title}
+							Edit question {editingQuestion?.title}
 						</DialogTitle>
-						<DialogDescription>Cập nhật thông tin câu hỏi</DialogDescription>
+						<DialogDescription>Update question information</DialogDescription>
 					</DialogHeader>
 					<div className="grid gap-4 py-4">
 						<div className="grid gap-2">
-							<Label>Tiêu đề *</Label>
+							<Label>Title *</Label>
 							<Input
 								value={questionForm.title}
 								onChange={e =>
 									setQuestionForm({ ...questionForm, title: e.target.value })
 								}
-								placeholder="Nhập tiêu đề câu hỏi"
+								placeholder="Enter question title"
 							/>
 						</div>
 						<div className="grid gap-2">
-							<Label>Đường dẫn mô tả</Label>
+							<Label>Description path</Label>
 							<Input
 								value={questionForm.descriptionPath}
 								onChange={e =>
@@ -1714,7 +1714,7 @@ export default function AdminRoomDetailPage() {
 						</div>
 						<div className="grid grid-cols-2 gap-4">
 							<div className="grid gap-2">
-								<Label>Điểm</Label>
+								<Label>Score</Label>
 								<Input
 									type="number"
 									value={questionForm.score}
@@ -1727,7 +1727,7 @@ export default function AdminRoomDetailPage() {
 								/>
 							</div>
 							<div className="grid gap-2">
-								<Label>Thứ tự</Label>
+								<Label>Order</Label>
 								<Input
 									type="number"
 									value={questionForm.order}
@@ -1774,20 +1774,20 @@ export default function AdminRoomDetailPage() {
 							variant="outline"
 							onClick={() => setIsEditQuestionDialogOpen(false)}
 						>
-							Hủy
+							Cancel
 						</Button>
 						<Button
 							onClick={() => {
 								// TODO: Call update question API
 								toast({
-									title: 'Thông báo',
-									description: 'Chức năng đang được phát triển'
+									title: 'Notice',
+									description: 'This feature is under development'
 								})
 								setIsEditQuestionDialogOpen(false)
 							}}
 							className="bg-[#40E0D0] hover:bg-[#40E0D0]/90 text-white"
 						>
-							Cập nhật
+							Update
 						</Button>
 					</DialogFooter>
 				</DialogContent>
@@ -1807,19 +1807,19 @@ export default function AdminRoomDetailPage() {
 			>
 				<DialogContent className="max-w-lg">
 					<DialogHeader>
-						<DialogTitle>Thêm học sinh vào phòng thi</DialogTitle>
+						<DialogTitle>Add student to room</DialogTitle>
 						<DialogDescription>
-							Tìm kiếm và chọn học sinh để thêm vào phòng thi
+							Search and select a student to add to this room
 						</DialogDescription>
 					</DialogHeader>
 					<div className="space-y-4 py-4">
 						{/* Search Input */}
 						<div className="space-y-2">
-							<Label>Tìm kiếm học sinh</Label>
+							<Label>Search students</Label>
 							<div className="relative">
 								<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 								<Input
-									placeholder="Nhập tên, email hoặc ID học sinh..."
+									placeholder="Enter name, email or student ID..."
 									className="pl-10"
 									value={studentSearchQuery}
 									onChange={e => setStudentSearchQuery(e.target.value)}
@@ -1829,7 +1829,7 @@ export default function AdminRoomDetailPage() {
 
 						{/* Student List */}
 						<div className="space-y-2">
-							<Label>Danh sách học sinh</Label>
+							<Label>Student list</Label>
 							<ScrollArea className="h-[250px] border rounded-md">
 								{usersLoading ? (
 									<div className="flex justify-center py-8">
@@ -1912,13 +1912,13 @@ export default function AdminRoomDetailPage() {
 												return !existingIds.includes(user.studentId)
 											}).length === 0 && (
 											<div className="text-center py-8 text-muted-foreground text-sm">
-												Không tìm thấy học sinh phù hợp
+												No matching students found
 											</div>
 										)}
 									</div>
 								) : (
 									<div className="text-center py-8 text-muted-foreground text-sm">
-										Không có học sinh nào trong hệ thống
+										No students in the system
 									</div>
 								)}
 							</ScrollArea>
@@ -1927,7 +1927,7 @@ export default function AdminRoomDetailPage() {
 						{/* Selected Student Info */}
 						{selectedStudent && (
 							<div className="bg-muted/50 rounded-lg p-3">
-								<p className="text-xs text-muted-foreground mb-1">Đã chọn:</p>
+								<p className="text-xs text-muted-foreground mb-1">Selected:</p>
 								<p className="font-medium">{selectedStudent.studentFullName}</p>
 								<p className="text-sm text-muted-foreground">
 									{selectedStudent.studentEmail}
@@ -1940,7 +1940,7 @@ export default function AdminRoomDetailPage() {
 							variant="outline"
 							onClick={() => setIsAddStudentDialogOpen(false)}
 						>
-							Hủy
+							Cancel
 						</Button>
 						<Button
 							onClick={handleAddStudent}
@@ -1952,7 +1952,7 @@ export default function AdminRoomDetailPage() {
 							) : (
 								<UserPlus className="h-4 w-4 mr-2" />
 							)}
-							Thêm học sinh
+							Add student
 						</Button>
 					</DialogFooter>
 				</DialogContent>

@@ -55,26 +55,26 @@ export default function EditUserPage({
           className="mb-4 inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Quay lại danh sách sinh viên
+          Back to students list
         </Link>
-        <h1 className="text-2xl font-bold">Chỉnh sửa sinh viên</h1>
+        <h1 className="text-2xl font-bold">Edit student</h1>
         <p className="text-muted-foreground">
-          Cập nhật thông tin cho sinh viên có mã {params.userId}
+          Update information for student with ID {params.userId}
         </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Thông tin sinh viên</CardTitle>
+          <CardTitle>Student information</CardTitle>
           <CardDescription>
-            Chỉnh sửa các thông tin cơ bản của sinh viên
+            Edit basic information of the student
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Student ID (readonly) */}
             <div className="space-y-2">
-              <Label htmlFor="studentId">Mã sinh viên</Label>
+              <Label htmlFor="studentId">Student ID</Label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -88,10 +88,10 @@ export default function EditUserPage({
 
             {/* Full Name */}
             <div className="space-y-2">
-              <Label htmlFor="fullName">Họ và tên *</Label>
+              <Label htmlFor="fullName">Full name *</Label>
               <Input
                 id="fullName"
-                placeholder="Nhập họ và tên sinh viên"
+                placeholder="Enter full name"
                 value={formData.fullName}
                 onChange={(e) =>
                   setFormData({ ...formData, fullName: e.target.value })
@@ -127,15 +127,15 @@ export default function EditUserPage({
                 className="flex-1 bg-transparent"
                 onClick={() => router.push("/admin/users")}
               >
-                Hủy
+                Cancel
               </Button>
               <Button type="submit" className="flex-1" disabled={isSubmitting}>
                 {isSubmitting ? (
-                  "Đang lưu..."
+                  "Saving..."
                 ) : (
                   <>
                     <Save className="mr-2 h-4 w-4" />
-                    Lưu thay đổi
+                    Save changes
                   </>
                 )}
               </Button>
