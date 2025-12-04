@@ -238,7 +238,8 @@ export const adminService = {
 			return wrapResponse(null, 404, '', 'Room not found')
 		}
 
-		if (room.createdBy !== user.userId) {
+		// Admins can bypass ownership check
+		if (!user.isAdmin && room.createdBy !== user.userId) {
 			set.status = 403
 			return wrapResponse(
 				null,
@@ -414,7 +415,8 @@ export const adminService = {
 			return wrapResponse(null, 404, '', 'Room not found')
 		}
 
-		if (room.createdBy !== user.userId) {
+		// Admins can bypass ownership check
+		if (!user.isAdmin && room.createdBy !== user.userId) {
 			set.status = 403
 			return wrapResponse(
 				null,
@@ -468,7 +470,13 @@ export const adminService = {
 			.from(rooms)
 			.where(eq(rooms.uuid, question.roomUuid))
 
-		if (!room || room.createdBy !== user.userId) {
+		if (!room) {
+			set.status = 404
+			return wrapResponse(null, 404, '', 'Room not found')
+		}
+
+		// Admins can bypass ownership check
+		if (!user.isAdmin && room.createdBy !== user.userId) {
 			set.status = 403
 			return wrapResponse(
 				null,
@@ -522,7 +530,13 @@ export const adminService = {
 			.from(rooms)
 			.where(eq(rooms.uuid, question.roomUuid))
 
-		if (!room || room.createdBy !== user.userId) {
+		if (!room) {
+			set.status = 404
+			return wrapResponse(null, 404, '', 'Room not found')
+		}
+
+		// Admins can bypass ownership check
+		if (!user.isAdmin && room.createdBy !== user.userId) {
 			set.status = 403
 			return wrapResponse(
 				null,
@@ -596,7 +610,13 @@ export const adminService = {
 			.from(rooms)
 			.where(eq(rooms.uuid, question.roomUuid))
 
-		if (!room || room.createdBy !== user.userId) {
+		if (!room) {
+			set.status = 404
+			return wrapResponse(null, 404, '', 'Room not found')
+		}
+
+		// Admins can bypass ownership check
+		if (!user.isAdmin && room.createdBy !== user.userId) {
 			set.status = 403
 			return wrapResponse(
 				null,
@@ -681,7 +701,13 @@ export const adminService = {
 			.from(rooms)
 			.where(eq(rooms.uuid, question.roomUuid))
 
-		if (!room || room.createdBy !== user.userId) {
+		if (!room) {
+			set.status = 404
+			return wrapResponse(null, 404, '', 'Room not found')
+		}
+
+		// Admins can bypass ownership check
+		if (!user.isAdmin && room.createdBy !== user.userId) {
 			set.status = 403
 			return wrapResponse(
 				null,

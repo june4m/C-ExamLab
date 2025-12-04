@@ -308,11 +308,16 @@ export default function AdminQuestionsPage() {
 				toast({ title: 'Thành công', description: 'Đã tạo test case mới' })
 				resetTestCaseForm()
 			},
-			onError: (error: any) => {
+			onError: (error: unknown) => {
 				console.error('Create testcase error:', error)
 				const errorMessage =
-					error?.response?.data?.message ||
-					error?.message ||
+					(
+						error as {
+							response?: { data?: { message?: string } }
+							message?: string
+						}
+					)?.response?.data?.message ||
+					(error as { message?: string })?.message ||
 					'Không thể tạo test case'
 				toast({
 					title: 'Lỗi',
