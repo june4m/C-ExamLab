@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, use } from 'react'
 import { ExamQuestionView } from '@/components/student/ExamQuestionView'
 import { TestResults } from '@/components/student/TestResults'
 import { SubmissionResults } from '@/components/student/SubmissionResults'
@@ -19,18 +19,19 @@ import type { SubmitAnswerResponse } from '@/interface/student/submission.interf
 export default function QuestionPage({
 	params
 }: {
-	params: { roomId: string; questionId: string }
+	params: Promise<{ roomId: string; questionId: string }>
 }) {
+	const { roomId, questionId } = use(params)
 	const {
 		data: question,
 		isLoading: questionLoading,
 		error: questionError
-	} = useGetQuestion(params.roomId, params.questionId)
+	} = useGetQuestion(roomId, questionId)
 	const {
 		data: room,
 		isLoading: roomLoading,
 		error: roomError
-	} = useGetRoomDetails(params.roomId)
+	} = useGetRoomDetails(roomId)
 
 	const testMutation = useTestAnswer()
 	const executeMutation = useExecuteCode()
@@ -49,8 +50,8 @@ export default function QuestionPage({
 		try {
 			setExecuteResult(null)
 			const result = await executeMutation.mutateAsync({
-				roomId: params.roomId,
-				questionId: params.questionId,
+				roomId: roomId,
+				questionId: questionId,
 				answerCode: code
 			})
 			setExecuteResult(result)
@@ -76,8 +77,8 @@ export default function QuestionPage({
 		try {
 			setTestResult(null)
 			const result = await testMutation.mutateAsync({
-				roomId: params.roomId,
-				questionId: params.questionId,
+				roomId: roomId,
+				questionId: questionId,
 				answerCode: code
 			})
 			setTestResult(result)
@@ -112,8 +113,8 @@ export default function QuestionPage({
 		try {
 			setSubmissionResult(null)
 			const result = await submitMutation.mutateAsync({
-				roomId: params.roomId,
-				questionId: params.questionId,
+				roomId: roomId,
+				questionId: questionId,
 				answerCode: code
 			})
 			setSubmissionResult(result)

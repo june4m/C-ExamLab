@@ -118,7 +118,7 @@ export default function AdminUsersPage() {
 	if (error) {
 		return (
 			<div className="rounded-md bg-destructive/10 p-4 text-center text-destructive">
-				Không thể tải danh sách người dùng
+				Failed to load users
 			</div>
 		)
 	}
@@ -127,19 +127,17 @@ export default function AdminUsersPage() {
 
 	return (
 		<div className="container mx-auto p-6">
-			{/* Header - giống style của Rooms */}
+			{/* Header - same style as Rooms */}
 			<div className="mb-6 flex items-center justify-between">
 				<div>
-					<h1 className="text-2xl font-bold">Quản lý người dùng</h1>
+					<h1 className="text-2xl font-bold">User Management</h1>
 					<p className="text-muted-foreground text-sm">
-						Quản lý tất cả người dùng trong hệ thống
+						Manage all users in the system
 					</p>
 				</div>
 				<div className="flex items-center gap-2">
 					<Users className="h-5 w-5 text-muted-foreground" />
-					<span className="text-sm font-medium">
-						{allUsers.length} người dùng
-					</span>
+					<span className="text-sm font-medium">{allUsers.length} users</span>
 				</div>
 			</div>
 
@@ -148,14 +146,14 @@ export default function AdminUsersPage() {
 				<div className="relative flex-1 max-w-md">
 					<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
 					<Input
-						placeholder="Tìm kiếm theo mã SV, họ tên hoặc email..."
+						placeholder="Search by student ID, full name or email..."
 						value={searchQuery}
 						onChange={e => handleSearch(e.target.value)}
 						className="pl-10"
 					/>
 				</div>
 				<span className="text-sm text-muted-foreground whitespace-nowrap">
-					Hiển thị {paginatedUsers.length} / {filteredUsers.length} kết quả
+					Showing {paginatedUsers.length} / {filteredUsers.length} results
 				</span>
 			</div>
 
@@ -163,9 +161,7 @@ export default function AdminUsersPage() {
 			{filteredUsers.length === 0 && (
 				<div className="rounded-md border border-dashed p-12 text-center">
 					<p className="text-muted-foreground">
-						{searchQuery
-							? 'Không tìm thấy người dùng phù hợp'
-							: 'Chưa có người dùng nào'}
+						{searchQuery ? 'No matching users found' : 'No users yet'}
 					</p>
 				</div>
 			)}
@@ -176,15 +172,13 @@ export default function AdminUsersPage() {
 					<Table>
 						<TableHeader>
 							<TableRow>
-								<TableHead className="w-[220px]">Mã SV</TableHead>
-								<TableHead className="w-[180px]">Họ tên</TableHead>
+								<TableHead className="w-[220px]">Student ID</TableHead>
+								<TableHead className="w-[180px]">Full name</TableHead>
 								<TableHead className="w-[200px]">Email</TableHead>
-								<TableHead className="w-[120px]">Trạng thái</TableHead>
-								<TableHead className="w-[140px]">Đăng nhập cuối</TableHead>
-								<TableHead className="w-[140px]">Ngày tạo</TableHead>
-								<TableHead className="w-[100px] text-center">
-									Thao tác
-								</TableHead>
+								<TableHead className="w-[120px]">Status</TableHead>
+								<TableHead className="w-[140px]">Last login</TableHead>
+								<TableHead className="w-[140px]">Created at</TableHead>
+								<TableHead className="w-[100px] text-center">Action</TableHead>
 							</TableRow>
 						</TableHeader>
 						<TableBody>
@@ -203,12 +197,12 @@ export default function AdminUsersPage() {
 										{user.isBanned ? (
 											<Badge variant="destructive" className="gap-1">
 												<Ban className="h-3 w-3" />
-												Bị cấm
+												Banned
 											</Badge>
 										) : (
 											<Badge className="gap-1 bg-green-600 hover:bg-green-700">
 												<ShieldCheck className="h-3 w-3" />
-												Hoạt động
+												Active
 											</Badge>
 										)}
 									</TableCell>
@@ -230,12 +224,12 @@ export default function AdminUsersPage() {
 											{user.isBanned ? (
 												<>
 													<ShieldCheck className="h-4 w-4 mr-1" />
-													Bỏ cấm
+													Unban
 												</>
 											) : (
 												<>
 													<Ban className="h-4 w-4 mr-1" />
-													Cấm
+													Ban
 												</>
 											)}
 										</Button>
@@ -249,7 +243,7 @@ export default function AdminUsersPage() {
 					{totalPages > 1 && (
 						<div className="flex items-center justify-between px-4 py-3 border-t">
 							<span className="text-sm text-muted-foreground">
-								Trang {currentPage} / {totalPages}
+								Page {currentPage} / {totalPages}
 							</span>
 							<div className="flex items-center gap-1">
 								<Button
@@ -259,7 +253,7 @@ export default function AdminUsersPage() {
 									disabled={currentPage === 1}
 								>
 									<ChevronLeft className="h-4 w-4" />
-									Trước
+									Previous
 								</Button>
 								{Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
 									let pageNum: number
@@ -292,7 +286,7 @@ export default function AdminUsersPage() {
 									}
 									disabled={currentPage === totalPages}
 								>
-									Sau
+									Next
 									<ChevronRight className="h-4 w-4" />
 								</Button>
 							</div>

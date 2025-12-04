@@ -44,6 +44,43 @@ interface JudgeResult {
 	error?: string
 }
 
+// ApiResponse wrapper type matching backend
+interface ApiResponse<T> {
+	success: boolean
+	message?: string
+	error?: string
+	code: number
+	data?: T
+}
+
+// Backend JudgeFromFile request format
+interface JudgeFromFileRequest {
+	code: string
+	roomId: string
+	questionId: string
+	includePrivate?: boolean
+	timeLimit?: number
+	memoryLimit?: number
+	optimizationLevel?: 0 | 1 | 2 | 3 | 's'
+}
+
+// Backend JudgeResult response format
+interface JudgeResult {
+	passed: number
+	failed: number
+	total: number
+	results: Array<{
+		testCase: number
+		passed: boolean
+		input: string
+		expectedOutput: string
+		actualOutput?: string
+		error?: string
+		executionTime?: number
+	}>
+	error?: string
+}
+
 export function useTestAnswer() {
 	return useMutation({
 		mutationFn: async (
@@ -63,9 +100,7 @@ export function useTestAnswer() {
 			)
 
 			if (!data.success || !data.data) {
-				throw new Error(
-					data.error || data.message || 'Failed to test answer'
-				)
+				throw new Error(data.error || data.message || 'Failed to test answer')
 			}
 
 			const judgeResult = data.data
@@ -91,8 +126,7 @@ export function useTestAnswer() {
 					error: result.error || null
 				})),
 				overallPassed:
-					judgeResult.passed === judgeResult.total &&
-					judgeResult.total > 0
+					judgeResult.passed === judgeResult.total && judgeResult.total > 0
 			}
 
 			return response

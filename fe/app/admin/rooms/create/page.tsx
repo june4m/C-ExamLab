@@ -50,6 +50,7 @@ function useCreateRoom() {
 
 	return useMutation({
 		mutationFn: async (payload: CreateRoomRequest) => {
+			console.log('Creating room with payload:', payload)
 			const res = await fetch(`${API_BASE_URL}/admin/rooms/create-room`, {
 				method: 'POST',
 				headers: {
@@ -58,10 +59,13 @@ function useCreateRoom() {
 				},
 				body: JSON.stringify(payload)
 			})
-			console.log(payload)
 			const json = (await res.json()) as CreateRoomResponse
+			console.log('Create room response:', json)
 			if (!res.ok || !json.success) {
-				throw new Error(json.message || 'Failed to create room')
+				const errorMsg =
+					json.message || (json as any).error || 'Failed to create room'
+				console.error('Create room error:', errorMsg)
+				throw new Error(errorMsg)
 			}
 			return json
 		}
@@ -154,8 +158,14 @@ export default function CreateRoomPage() {
 				queryClient.invalidateQueries({ queryKey: ['admin-rooms'] })
 				router.push('/admin/rooms')
 			},
-			onError: (err: Error) => {
-				setError(err.message || 'Failed to create room')
+			onError: (err: any) => {
+				console.error('Create room error details:', err)
+				const errorMsg =
+					err?.response?.data?.error ||
+					err?.response?.data?.message ||
+					err?.message ||
+					'Failed to create room'
+				setError(errorMsg)
 			}
 		})
 	}
@@ -169,10 +179,12 @@ export default function CreateRoomPage() {
 					className="mb-4 inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
 				>
 					<ArrowLeft className="mr-2 h-4 w-4" />
-					Quay lại danh sách phòng
+					Back to rooms list
 				</Link>
-				<h1 className="text-2xl font-bold">Tạo phòng thi mới</h1>
-				<p className="text-muted-foreground">Điền thông tin để tạo phòng thi</p>
+				<h1 className="text-2xl font-bold">Create new exam room</h1>
+				<p className="text-muted-foreground">
+					Enter information to create an exam room
+				</p>
 			</div>
 
 			{error && (
@@ -184,19 +196,19 @@ export default function CreateRoomPage() {
 
 			<Card>
 				<CardHeader>
-					<CardTitle>Thông tin phòng thi</CardTitle>
+					<CardTitle>Exam room information</CardTitle>
 					<CardDescription>
-						Nhập các thông tin cần thiết cho phòng thi
+						Fill in the required information for the exam room
 					</CardDescription>
 				</CardHeader>
 				<CardContent>
 					<form onSubmit={handleSubmit} className="space-y-6">
 						{/* Room Name */}
 						<div className="space-y-2">
-							<Label htmlFor="name">Tên phòng thi *</Label>
+							<Label htmlFor="name">Room name *</Label>
 							<Input
 								id="name"
-								placeholder="Nhập tên phòng thi"
+								placeholder="Enter room name"
 								value={formData.name}
 								onChange={e =>
 									setFormData({ ...formData, name: e.target.value })
@@ -207,7 +219,7 @@ export default function CreateRoomPage() {
 
 						{/* Open Time */}
 						<div className="space-y-2">
-							<Label>Thời gian mở phòng thi *</Label>
+							<Label>Room open time *</Label>
 							<div className="grid grid-cols-2 gap-4">
 								<div className="relative">
 									<Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -254,7 +266,7 @@ export default function CreateRoomPage() {
 
 						{/* Close Time */}
 						<div className="space-y-2">
-							<Label>Thời gian đóng phòng thi *</Label>
+							<Label>Room close time *</Label>
 							<div className="grid grid-cols-2 gap-4">
 								<div className="relative">
 									<Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -307,7 +319,7 @@ export default function CreateRoomPage() {
 								{questionIds.map((id, index) => (
 									<div key={index} className="flex gap-2">
 										<Input
-											placeholder="Nhập Question ID"
+											placeholder="Enter Question ID"
 											value={id}
 											onChange={e => updateQuestionId(index, e.target.value)}
 										/>
@@ -344,7 +356,7 @@ export default function CreateRoomPage() {
 								{testcaseIds.map((id, index) => (
 									<div key={index} className="flex gap-2">
 										<Input
-											placeholder="Nhập Testcase ID"
+											placeholder="Enter Testcase ID"
 											value={id}
 											onChange={e => updateTestcaseId(index, e.target.value)}
 										/>
@@ -371,15 +383,15 @@ export default function CreateRoomPage() {
 								className="flex-1 bg-transparent"
 								onClick={() => router.push('/admin/rooms')}
 							>
-								Hủy
+								Cancel
 							</Button>
 							<Button type="submit" className="flex-1" disabled={isPending}>
 								{isPending ? (
-									'Đang tạo...'
+									'Creating...'
 								) : (
 									<>
 										<Save className="mr-2 h-4 w-4" />
-										Tạo phòng thi
+										Create room
 									</>
 								)}
 							</Button>

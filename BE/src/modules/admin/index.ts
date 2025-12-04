@@ -115,20 +115,19 @@ export const admin = new Elysia({ prefix: '/admin', tags: ['Admin'] })
 		}
 	})
 
-	// Add student to room (admin manually adds student)
-	.post('/room/add-student', adminService.addStudentToRoom, {
+	// Add students to room (admin manually adds students)
+	.post('/room/add-students', adminService.addStudentToRoom, {
 		detail: {
-			summary: 'Add student to room',
+			summary: 'Add students to room',
 			description:
-				'Admin manually adds a student to an exam room. Student must exist and not be an admin.'
+				'Admin manually adds multiple students to an exam room. Students must exist and not be admins. Returns count of added/skipped students.'
 		},
 		body: AddStudentToRoomSchema,
 		response: {
+			200: ApiResponseSchema(AddStudentToRoomResponseSchema),
 			201: ApiResponseSchema(AddStudentToRoomResponseSchema),
-			400: ApiResponseSchema(t.Null()),
 			403: ApiResponseSchema(t.Null()),
 			404: ApiResponseSchema(t.Null()),
-			409: ApiResponseSchema(t.Null()),
 			500: ApiResponseSchema(t.Null())
 		}
 	})
@@ -234,6 +233,25 @@ export const admin = new Elysia({ prefix: '/admin', tags: ['Admin'] })
 			403: ApiResponseSchema(t.Null()),
 			404: ApiResponseSchema(t.Null()),
 			409: ApiResponseSchema(t.Null()),
+			500: ApiResponseSchema(t.Null())
+		}
+	})
+
+	// Delete a testcase
+	.delete('/testcases/:questionId/:testcaseId', adminService.deleteTestcase, {
+		detail: {
+			summary: 'Delete testcase',
+			description: 'Delete a testcase from a question.'
+		},
+		params: t.Object({
+			questionId: t.String(),
+			testcaseId: t.String()
+		}),
+		response: {
+			200: ApiResponseSchema(t.Object({ message: t.String() })),
+			400: ApiResponseSchema(t.Null()),
+			403: ApiResponseSchema(t.Null()),
+			404: ApiResponseSchema(t.Null()),
 			500: ApiResponseSchema(t.Null())
 		}
 	})

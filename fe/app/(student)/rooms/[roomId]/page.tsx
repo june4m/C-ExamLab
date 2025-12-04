@@ -1,5 +1,6 @@
 'use client'
 
+import { use } from 'react'
 import { ExamTimer } from '@/components/student/ExamTimer'
 import { useGetRoomDetails } from '@/service/student/room.service'
 import { Button } from '@/components/ui/button'
@@ -10,11 +11,13 @@ import { useRouter } from 'next/navigation'
 
 export default function RoomDashboardPage({
 	params
+	params
 }: {
-	params: { roomId: string }
+	params: Promise<{ roomId: string }>
 }) {
 	const router = useRouter()
-	const { data: room, isLoading, error } = useGetRoomDetails(params.roomId)
+	const { roomId } = use(params)
+	const { data: room, isLoading, error } = useGetRoomDetails(roomId)
 
 	if (isLoading) {
 		return (
@@ -89,7 +92,7 @@ export default function RoomDashboardPage({
 							View and start exams (questions) in this room
 						</p>
 						<Button asChild className="w-full">
-							<Link href={`/rooms/${params.roomId}/exams`}>
+							<Link href={`/rooms/${roomId}/exams`}>
 								<BookOpen className="mr-2 h-4 w-4" />
 								View Exams
 							</Link>
@@ -109,7 +112,7 @@ export default function RoomDashboardPage({
 							View your scores and submission results
 						</p>
 						<Button asChild variant="outline" className="w-full">
-							<Link href={`/rooms/${params.roomId}/results`}>
+							<Link href={`/rooms/${roomId}/results`}>
 								<Trophy className="mr-2 h-4 w-4" />
 								View Results
 							</Link>

@@ -48,20 +48,29 @@ export const LeaderboardResponseSchema = t.Object({
 
 export type LeaderboardResponse = typeof LeaderboardResponseSchema.static
 
-// Schema for add student to room request
+// Schema for add student to room request (supports multiple students)
 export const AddStudentToRoomSchema = t.Object({
 	roomId: t.String(),
-	studentId: t.String()
+	studentIds: t.Array(t.String(), { minItems: 1 })
 })
 
 export type AddStudentToRoomDto = typeof AddStudentToRoomSchema.static
 
 // Schema for add student to room response
 export const AddStudentToRoomResponseSchema = t.Object({
-	message: t.String()
+	message: t.String(),
+	added: t.Number(),
+	skipped: t.Number(),
+	errors: t.Array(
+		t.Object({
+			studentId: t.String(),
+			reason: t.String()
+		})
+	)
 })
 
-export type AddStudentToRoomResponse = typeof AddStudentToRoomResponseSchema.static
+export type AddStudentToRoomResponse =
+	typeof AddStudentToRoomResponseSchema.static
 
 // Schema for room participant
 export const RoomParticipantSchema = t.Object({
@@ -69,7 +78,8 @@ export const RoomParticipantSchema = t.Object({
 	studentId: t.String(),
 	studentFullName: t.Union([t.String(), t.Null()]),
 	studentEmail: t.String(),
-	joinedAt: t.Union([t.String(), t.Null()])
+	joinedAt: t.Union([t.String(), t.Null()]),
+	isBanned: t.Optional(t.Boolean())
 })
 
 export type RoomParticipant = typeof RoomParticipantSchema.static
@@ -101,8 +111,8 @@ export type GetTestcasesDto = typeof GetTestcasesSchema.static
 export const TestcaseItemSchema = t.Object({
 	testcaseId: t.String(),
 	index: t.Number(),
-	input_path: t.String(),
-	output_path: t.String(),
+	input: t.String(),
+	output: t.String(),
 	is_hidden: t.Number()
 })
 
@@ -120,7 +130,7 @@ export const CreateTestcaseSchema = t.Object({
 	index: t.Number(),
 	input_path: t.String(),
 	output_path: t.String(),
-	is_hidden: t.Number()
+	is_hidden: t.Union([t.Number(), t.Boolean()])
 })
 
 export type CreateTestcaseDto = typeof CreateTestcaseSchema.static
@@ -140,7 +150,7 @@ export const UpdateTestcaseSchema = t.Object({
 	index: t.Number(),
 	input_path: t.String(),
 	output_path: t.String(),
-	is_hidden: t.Number()
+	is_hidden: t.Union([t.Number(), t.Boolean()])
 })
 
 export type UpdateTestcaseDto = typeof UpdateTestcaseSchema.static

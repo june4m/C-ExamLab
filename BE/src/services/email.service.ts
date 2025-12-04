@@ -1,5 +1,11 @@
 import nodemailer from 'nodemailer'
-import { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM } from '../configurations/env'
+import {
+	SMTP_HOST,
+	SMTP_PORT,
+	SMTP_USER,
+	SMTP_PASS,
+	SMTP_FROM
+} from '../configurations/env'
 
 // Create transporter
 const transporter = nodemailer.createTransport({
