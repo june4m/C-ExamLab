@@ -39,5 +39,5 @@ const app = new Elysia()
 	.use(user)
 	.listen(5000, () => {
 		console.log('🚀 Server running: http://localhost:5000')
-		console.log('📘 Swagger docs: http://localhost:5000/swagger')
+		console.log('📘 Swagger docs: http://localhost:5000/swagger') //swagger
 	})
