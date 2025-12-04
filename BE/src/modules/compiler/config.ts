@@ -25,14 +25,15 @@ export class CompilerConfig {
 	static readonly CLEANUP_TIMEOUT = 2000 // 2s for cleanup operations
 
 	// Rate limiting
-	static readonly MAX_REQUESTS_PER_MINUTE = 10
+	static readonly MAX_REQUESTS_PER_MINUTE = 1000 // Increased for stress testing
 	static readonly RATE_LIMIT_WINDOW_MS = 60000 // 1 minute
 
 	// Docker container settings
-	static readonly CONTAINER_NAME = 'c_compiler_persistent'
-	static readonly CONTAINER_CPUS = '2'
-	static readonly CONTAINER_MEMORY_MB = 512
-	static readonly CONTAINER_PIDS_LIMIT = 100
+	static readonly CONTAINER_NAME_PREFIX = 'c_compiler'
+	static readonly CONTAINER_POOL_SIZE = 5 // Number of containers
+	static readonly CONTAINER_CPUS = '2' // Per container
+	static readonly CONTAINER_MEMORY_MB = 512 // Per container
+	static readonly CONTAINER_PIDS_LIMIT = 300 // Per container - GCC needs ~10-15 PIDs per compilation
 
 	// Compilation markers
 	static readonly COMPILE_SUCCESS_MARKER = '___COMPILE_SUCCESS___'
@@ -54,5 +55,5 @@ export class CompilerConfig {
 	static readonly ALLOWED_EXTENSIONS = ['c'] as const
 
 	// Maximum number of concurrent compilations
-	static readonly MAX_CONCURRENT_COMPILATIONS = 10
+	static readonly MAX_CONCURRENT_COMPILATIONS = 40 // Across all containers - ~8 per container max
 }

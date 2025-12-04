@@ -67,7 +67,7 @@ export function useCreateTestCase() {
 	return useMutation({
 		mutationFn: async (payload: CreateTestCaseRequest) => {
 			const { data } = await axios.post<CreateTestCaseResponse>(
-				'/testcase/',
+				'/testcase',
 				payload
 			)
 			return data
