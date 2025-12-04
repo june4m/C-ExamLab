@@ -10,8 +10,6 @@ import {
 	Calendar,
 	Clock,
 	Save,
-	Plus,
-	X,
 	AlertCircle
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -50,7 +48,6 @@ function useCreateRoom() {
 
 	return useMutation({
 		mutationFn: async (payload: CreateRoomRequest) => {
-			console.log('Creating room with payload:', payload)
 			const res = await fetch(`${API_BASE_URL}/admin/rooms/create-room`, {
 				method: 'POST',
 				headers: {
@@ -60,12 +57,8 @@ function useCreateRoom() {
 				body: JSON.stringify(payload)
 			})
 			const json = (await res.json()) as CreateRoomResponse
-			console.log('Create room response:', json)
 			if (!res.ok || !json.success) {
-				const errorMsg =
-					json.message || (json as any).error || 'Failed to create room'
-				console.error('Create room error:', errorMsg)
-				throw new Error(errorMsg)
+				throw new Error(json.message || 'Failed to create room')
 			}
 			return json
 		}
@@ -138,17 +131,13 @@ export default function CreateRoomPage() {
 			`${formData.closeDate}T${formData.closeTime}`
 		).toISOString()
 
-		// Filter out empty IDs
-		const filteredQuestionIds = questionIds.filter(id => id.trim() !== '')
-		const filteredTestcaseIds = testcaseIds.filter(id => id.trim() !== '')
-
 		const payload: CreateRoomRequest = {
 			name: formData.name,
 			openTime,
 			closeTime,
 			options: {
-				questionIdList: filteredQuestionIds,
-				testcaseIdList: filteredTestcaseIds
+				questionIdList: [],
+				testcaseIdList: []
 			}
 		}
 
@@ -158,14 +147,8 @@ export default function CreateRoomPage() {
 				queryClient.invalidateQueries({ queryKey: ['admin-rooms'] })
 				router.push('/admin/rooms')
 			},
-			onError: (err: any) => {
-				console.error('Create room error details:', err)
-				const errorMsg =
-					err?.response?.data?.error ||
-					err?.response?.data?.message ||
-					err?.message ||
-					'Failed to create room'
-				setError(errorMsg)
+			onError: (err: Error) => {
+				setError(err.message || 'Failed to create room')
 			}
 		})
 	}
@@ -298,80 +281,6 @@ export default function CreateRoomPage() {
 										</span>
 									)}
 								</div>
-							</div>
-						</div>
-
-						{/* Question IDs */}
-						<div className="space-y-2">
-							<div className="flex items-center justify-between">
-								<Label>Question IDs</Label>
-								<Button
-									type="button"
-									variant="outline"
-									size="sm"
-									onClick={addQuestionId}
-								>
-									<Plus className="mr-1 h-3 w-3" />
-									Thêm
-								</Button>
-							</div>
-							<div className="space-y-2">
-								{questionIds.map((id, index) => (
-									<div key={index} className="flex gap-2">
-										<Input
-											placeholder="Enter Question ID"
-											value={id}
-											onChange={e => updateQuestionId(index, e.target.value)}
-										/>
-										{questionIds.length > 1 && (
-											<Button
-												type="button"
-												variant="outline"
-												size="icon"
-												onClick={() => removeQuestionId(index)}
-											>
-												<X className="h-4 w-4" />
-											</Button>
-										)}
-									</div>
-								))}
-							</div>
-						</div>
-
-						{/* Testcase IDs */}
-						<div className="space-y-2">
-							<div className="flex items-center justify-between">
-								<Label>Testcase IDs</Label>
-								<Button
-									type="button"
-									variant="outline"
-									size="sm"
-									onClick={addTestcaseId}
-								>
-									<Plus className="mr-1 h-3 w-3" />
-									Thêm
-								</Button>
-							</div>
-							<div className="space-y-2">
-								{testcaseIds.map((id, index) => (
-									<div key={index} className="flex gap-2">
-										<Input
-											placeholder="Enter Testcase ID"
-											value={id}
-											onChange={e => updateTestcaseId(index, e.target.value)}
-										/>
-										{testcaseIds.length > 1 && (
-											<Button
-												type="button"
-												variant="outline"
-												size="icon"
-												onClick={() => removeTestcaseId(index)}
-											>
-												<X className="h-4 w-4" />
-											</Button>
-										)}
-									</div>
-								))}
 							</div>
 						</div>
 
