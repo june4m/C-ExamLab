@@ -23,6 +23,48 @@ import type { TestAnswerResponse } from '@/interface/student/test.interface'
 import type { ExecuteCodeResponse } from '@/interface/student/execute.interface'
 import type { SubmitAnswerResponse } from '@/interface/student/submission.interface'
 
+// Helper functions for status display
+function getStatusDisplayName(status: string): string {
+	const statusMap: Record<string, string> = {
+		PENDING: 'Pending',
+		RUNNING: 'Running',
+		AC: 'Accepted',
+		WA: 'Wrong Answer',
+		TLE: 'Time Limit Exceeded',
+		MLE: 'Memory Limit Exceeded',
+		RE: 'Runtime Error',
+		CE: 'Compilation Error',
+		JUDGE_ERROR: 'Judge Error',
+		SKIP: 'Skipped'
+	}
+	return statusMap[status.toUpperCase()] || status
+}
+
+function getStatusBadgeVariant(
+	status: string
+): 'success' | 'destructive' | 'warning' | 'default' {
+	const upperStatus = status.toUpperCase()
+
+	if (upperStatus === 'AC') {
+		return 'success'
+	}
+
+	if (upperStatus === 'TLE' || upperStatus === 'MLE') {
+		return 'warning'
+	}
+
+	if (
+		upperStatus === 'WA' ||
+		upperStatus === 'RE' ||
+		upperStatus === 'CE' ||
+		upperStatus === 'JUDGE_ERROR'
+	) {
+		return 'destructive'
+	}
+
+	return 'default'
+}
+
 export default function QuestionPage({
 	params
 }: {
@@ -143,16 +185,15 @@ export default function QuestionPage({
 			})
 			setSubmissionResult(result)
 
-			// More explicit status checking
-			const statusLower = result.status.toLowerCase().trim()
-			const successStatuses = ['accepted', 'success', 'passed', 'correct']
-			const isSuccess = successStatuses.some(status => statusLower === status)
+			// Check if submission was accepted
+			const isSuccess = result.status.toUpperCase() === 'AC'
+			const statusDisplayName = getStatusDisplayName(result.status)
 
 			toast({
 				title: isSuccess ? 'Submission successful!' : 'Submission completed',
 				description: isSuccess
 					? `Your answer scored ${result.score ?? 0} points!`
-					: `Status: ${result.status}. Score: ${result.score ?? 0}`,
+					: `Status: ${statusDisplayName}. Score: ${result.score ?? 0}`,
 				variant: isSuccess ? 'default' : 'destructive'
 			})
 		} catch (error) {
@@ -335,12 +376,18 @@ ${index < result.results.length - 1 ? '\n---\n' : ''}`
 					<Card
 						className={cn(
 							'border-2',
-							submissionResult &&
-								submissionResult.status.toLowerCase().includes('accepted')
+							submissionResult && submissionResult.status.toUpperCase() === 'AC'
 								? 'border-green-500 dark:border-green-600'
 								: submissionResult &&
-								  submissionResult.status.toLowerCase().includes('error')
+								  (submissionResult.status.toUpperCase() === 'WA' ||
+										submissionResult.status.toUpperCase() === 'RE' ||
+										submissionResult.status.toUpperCase() === 'CE' ||
+										submissionResult.status.toUpperCase() === 'JUDGE_ERROR')
 								? 'border-red-500 dark:border-red-600'
+								: submissionResult &&
+								  (submissionResult.status.toUpperCase() === 'TLE' ||
+										submissionResult.status.toUpperCase() === 'MLE')
+								? 'border-yellow-500 dark:border-yellow-600'
 								: ''
 						)}
 					>
@@ -363,19 +410,10 @@ ${index < result.results.length - 1 ? '\n---\n' : ''}`
 									{submissionResult && (
 										<div className="flex items-center gap-2">
 											<Badge
-												variant={
-													submissionResult.status
-														.toLowerCase()
-														.includes('accepted') ||
-													submissionResult.status
-														.toLowerCase()
-														.includes('success')
-														? 'success'
-														: 'destructive'
-												}
+												variant={getStatusBadgeVariant(submissionResult.status)}
 												className="text-sm"
 											>
-												{submissionResult.status}
+												{getStatusDisplayName(submissionResult.status)}
 											</Badge>
 											{submissionResult.score !== null &&
 												submissionResult.score !== undefined && (

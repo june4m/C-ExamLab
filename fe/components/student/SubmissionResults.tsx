@@ -22,27 +22,49 @@ interface SubmissionResultsProps {
 	noCard?: boolean
 }
 
+// Map status codes to user-friendly names
+function getStatusDisplayName(status: string): string {
+	const statusMap: Record<string, string> = {
+		PENDING: 'Pending',
+		RUNNING: 'Running',
+		AC: 'Accepted',
+		WA: 'Wrong Answer',
+		TLE: 'Time Limit Exceeded',
+		MLE: 'Memory Limit Exceeded',
+		RE: 'Runtime Error',
+		CE: 'Compilation Error',
+		JUDGE_ERROR: 'Judge Error',
+		SKIP: 'Skipped'
+	}
+	return statusMap[status.toUpperCase()] || status
+}
+
 function getStatusBadgeVariant(
 	status: string
 ): 'success' | 'destructive' | 'warning' | 'default' {
-	const lowerStatus = status.toLowerCase()
-	if (
-		lowerStatus.includes('accepted') ||
-		lowerStatus.includes('success') ||
-		lowerStatus.includes('passed')
-	) {
+	const upperStatus = status.toUpperCase()
+	
+	// Success statuses
+	if (upperStatus === 'AC') {
 		return 'success'
 	}
+	
+	// Warning statuses (time/memory limits)
+	if (upperStatus === 'TLE' || upperStatus === 'MLE') {
+		return 'warning'
+	}
+	
+	// Destructive statuses (errors)
 	if (
-		lowerStatus.includes('error') ||
-		lowerStatus.includes('failed') ||
-		lowerStatus.includes('wrong')
+		upperStatus === 'WA' ||
+		upperStatus === 'RE' ||
+		upperStatus === 'CE' ||
+		upperStatus === 'JUDGE_ERROR'
 	) {
 		return 'destructive'
 	}
-	if (lowerStatus.includes('timeout') || lowerStatus.includes('memory')) {
-		return 'warning'
-	}
+	
+	// Default statuses (pending, running, skip)
 	return 'default'
 }
 
@@ -128,11 +150,9 @@ export function SubmissionResults({
 	}
 
 	const statusVariant = getStatusBadgeVariant(result.status)
+	const statusDisplayName = getStatusDisplayName(result.status)
 	const passedCount = result.details.filter(
-		d =>
-			d.status.toLowerCase().includes('accepted') ||
-			d.status.toLowerCase().includes('passed') ||
-			d.status.toLowerCase().includes('success')
+		d => d.status.toUpperCase() === 'AC'
 	).length
 	const totalCount = result.details.length
 
@@ -190,7 +210,9 @@ export function SubmissionResults({
 					<div className="space-y-4">
 						{result.details.map((detail, index) => {
 							const detailStatusVariant = getStatusBadgeVariant(detail.status)
+							const detailStatusDisplayName = getStatusDisplayName(detail.status)
 							const isPassed = detailStatusVariant === 'success'
+							const isWarning = detailStatusVariant === 'warning'
 
 							return (
 								<div key={index}>
@@ -199,13 +221,17 @@ export function SubmissionResults({
 											'p-4 rounded-md border',
 											isPassed
 												? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800'
-												: 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800'
+												: isWarning
+													? 'bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-800'
+													: 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800'
 										)}
 									>
 										<div className="flex items-start justify-between mb-3">
 											<div className="flex items-center gap-2">
 												{isPassed ? (
 													<CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+												) : isWarning ? (
+													<AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
 												) : (
 													<XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
 												)}
@@ -216,7 +242,7 @@ export function SubmissionResults({
 													variant={detailStatusVariant}
 													className="text-xs"
 												>
-													{detail.status}
+													{detailStatusDisplayName}
 												</Badge>
 											</div>
 											<div className="flex items-center gap-4 text-xs text-muted-foreground">
@@ -279,12 +305,22 @@ export function SubmissionResults({
 						{statusVariant === 'success' ? (
 							<>
 								<CheckCircle2 className="mr-1 h-3 w-3" />
-								{result.status}
+								{statusDisplayName}
+							</>
+						) : statusVariant === 'warning' ? (
+							<>
+								<AlertCircle className="mr-1 h-3 w-3" />
+								{statusDisplayName}
+							</>
+						) : statusVariant === 'default' ? (
+							<>
+								<Loader2 className="mr-1 h-3 w-3" />
+								{statusDisplayName}
 							</>
 						) : (
 							<>
 								<XCircle className="mr-1 h-3 w-3" />
-								{result.status}
+								{statusDisplayName}
 							</>
 						)}
 					</Badge>

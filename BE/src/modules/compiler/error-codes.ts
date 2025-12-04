@@ -48,7 +48,12 @@ export function detectErrorCode(errorMessage: string): CompilerErrorCode {
 	}
 
 	// Runtime errors
-	if (msg.includes('segmentation fault') || msg.includes('sigsegv')) {
+	// Check for real segfaults (not timeout-related)
+	if (
+		(msg.includes('segmentation fault') || msg.includes('sigsegv')) &&
+		!msg.includes('timeout:') &&
+		!msg.includes('Terminated')
+	) {
 		return CompilerErrorCode.SEGMENTATION_FAULT
 	}
 	if (msg.includes('floating point exception') || msg.includes('sigfpe')) {

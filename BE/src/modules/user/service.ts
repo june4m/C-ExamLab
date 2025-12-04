@@ -6,9 +6,12 @@ import {
 	roomParticipants,
 	questions,
 	submissions,
-	submissionDetails
+	submissionDetails,
+	testCases
 } from '../../common/database/schema'
 import { wrapResponse } from '../../common/dtos/response'
+import { compilerService } from '../compiler/service'
+import { testCaseService } from '../testcase/service'
 import type {
 	JoinRoomDto,
 	JoinRoomResponse,
@@ -372,13 +375,169 @@ export const userService = {
 			})
 			.$returningId()
 
-		// Get the created submission
+		const submissionUuid = newSubmission.uuid
+
+		// Update status to RUNNING
+		await db
+			.update(submissions)
+			.set({ status: 'RUNNING' })
+			.where(eq(submissions.uuid, submissionUuid))
+
+		try {
+			// Judge the submission
+			const judgeResult = await compilerService.judgeFromFile(
+				{
+					roomId,
+					questionId,
+					code: answerCode,
+					timeLimit: question.timeLimit ?? undefined,
+					includePrivate: false
+				},
+				user.userId
+			)
+
+			// Calculate score based on passed test cases
+			// Get test cases from database to map results
+			const dbTestCases = (
+				await db
+					.select({
+						uuid: testCases.uuid,
+						index: testCases.index
+					})
+					.from(testCases)
+					.where(eq(testCases.questionUuid, questionId))
+			).sort((a, b) => a.index - b.index)
+
+			// Calculate total score
+			const totalTestCases = judgeResult.total
+			const passedTestCases = judgeResult.passed
+			const maxScore = question.score ?? 0
+			const calculatedScore =
+				totalTestCases > 0
+					? Math.round((passedTestCases / totalTestCases) * maxScore)
+					: 0
+
+			// Determine final status
+			let finalStatus:
+				| 'AC'
+				| 'WA'
+				| 'TLE'
+				| 'MLE'
+				| 'RE'
+				| 'CE'
+				| 'JUDGE_ERROR' = 'WA'
+			if (judgeResult.passed === judgeResult.total && judgeResult.total > 0) {
+				finalStatus = 'AC'
+			} else {
+				// Check if any test case had specific errors
+				const hasTLE = judgeResult.results.some(
+					r => r.error?.includes('Time limit') || r.error?.includes('TLE')
+				)
+				const hasMLE = judgeResult.results.some(
+					r => r.error?.includes('Memory') || r.error?.includes('MLE')
+				)
+				const hasRE = judgeResult.results.some(
+					r =>
+						r.error?.includes('Segmentation fault') ||
+						r.error?.includes('Runtime error') ||
+						r.error?.includes('RE')
+				)
+				const hasCE = judgeResult.results.some(
+					r => r.error?.includes('Compilation error') || r.error?.includes('CE')
+				)
+
+				if (hasCE) finalStatus = 'CE'
+				else if (hasTLE) finalStatus = 'TLE'
+				else if (hasMLE) finalStatus = 'MLE'
+				else if (hasRE) finalStatus = 'RE'
+			}
+
+			// Calculate total runtime
+			const totalRunTime = judgeResult.results.reduce(
+				(sum, r) => sum + (r.executionTime ?? 0),
+				0
+			)
+
+			// Update submission with results
+			await db
+				.update(submissions)
+				.set({
+					status: finalStatus,
+					score: calculatedScore,
+					totalRunTime: totalRunTime > 0 ? totalRunTime : null,
+					memoryUsed: null // Memory tracking not available in judge result
+				})
+				.where(eq(submissions.uuid, submissionUuid))
+
+			// Create submission details for each test case
+			if (dbTestCases.length > 0 && judgeResult.results.length > 0) {
+				const detailsToInsert = judgeResult.results.map((result, idx) => {
+					const dbTestCase = dbTestCases[idx]
+					if (!dbTestCase) return null
+
+					// Map judge result status to submission detail status
+					let detailStatus: 'AC' | 'WA' | 'TLE' | 'MLE' | 'RE' | 'SKIP' = 'WA'
+					if (result.passed) {
+						detailStatus = 'AC'
+					} else if (result.error) {
+						if (
+							result.error.includes('Time limit') ||
+							result.error.includes('TLE')
+						)
+							detailStatus = 'TLE'
+						else if (
+							result.error.includes('Memory') ||
+							result.error.includes('MLE')
+						)
+							detailStatus = 'MLE'
+						else if (
+							result.error.includes('Segmentation fault') ||
+							result.error.includes('Runtime error') ||
+							result.error.includes('RE')
+						)
+							detailStatus = 'RE'
+					}
+
+					return {
+						submissionUuid,
+						testcaseUuid: dbTestCase.uuid,
+						index: dbTestCase.index,
+						status: detailStatus,
+						runTime: result.executionTime ?? null,
+						memoryUsed: null, // Judge result doesn't provide memory per test case
+						stdout: result.actualOutput ?? null,
+						stderr: result.error ?? null
+					}
+				})
+
+				// Insert submission details (filter out nulls)
+				const validDetails = detailsToInsert.filter(
+					(d): d is NonNullable<typeof d> => d !== null
+				)
+				if (validDetails.length > 0) {
+					await db.insert(submissionDetails).values(validDetails)
+				}
+			}
+		} catch (error) {
+			// Update submission status to JUDGE_ERROR on failure
+			await db
+				.update(submissions)
+				.set({
+					status: 'JUDGE_ERROR',
+					score: 0
+				})
+				.where(eq(submissions.uuid, submissionUuid))
+
+			console.error('[UserService] Error judging submission:', error)
+		}
+
+		// Get the updated submission
 		const [submission] = await db
 			.select()
 			.from(submissions)
-			.where(eq(submissions.uuid, newSubmission.uuid))
+			.where(eq(submissions.uuid, submissionUuid))
 
-		// Get submission details if any
+		// Get submission details
 		const details = await db
 			.select({
 				testCaseIndex: submissionDetails.index,
@@ -389,11 +548,11 @@ export const userService = {
 				stderr: submissionDetails.stderr
 			})
 			.from(submissionDetails)
-			.where(eq(submissionDetails.submissionUuid, submission.uuid))
+			.where(eq(submissionDetails.submissionUuid, submissionUuid))
 
 		const response: SubmitQuestionResponse = {
 			status: submission.status ?? 'PENDING',
-			score: submission.score,
+			score: submission.score ?? 0,
 			totalRunTime: submission.totalRunTime,
 			memoryUsed: submission.memoryUsed,
 			details: details.map(d => ({

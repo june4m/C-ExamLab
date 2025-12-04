@@ -238,7 +238,12 @@ export class CompilerService {
 		input?: string,
 		timeLimit: number = DEFAULT_TIME_LIMIT,
 		maxOutputSize: number = CompilerConfig.MAX_OUTPUT_SIZE
-	): Promise<{ stdout: string; stderr: string; executionTime: number }> {
+	): Promise<{
+		stdout: string
+		stderr: string
+		executionTime: number
+		exitCode?: number
+	}> {
 		return new Promise((resolve, reject) => {
 			const startTime = Date.now()
 			const process = spawn(command, args)
@@ -290,11 +295,22 @@ export class CompilerService {
 
 				if (killed) return
 
+				// Exit code 139 = 128 + 11 (SIGSEGV) = real segfault
+				// Exit code 124 = timeout command's exit code when it kills a process
+				// Exit code 137 = 128 + 9 (SIGKILL) = killed (could be timeout or OOM)
 				if (code !== 0 && !stderr) {
-					stderr = `Process exited with code ${code}`
+					if (code === 139) {
+						stderr = 'Segmentation fault'
+					} else if (code === 124) {
+						stderr = 'Time limit exceeded'
+					} else if (code === 137) {
+						stderr = 'Process killed (time limit or memory limit exceeded)'
+					} else {
+						stderr = `Process exited with code ${code}`
+					}
 				}
 
-				resolve({ stdout, stderr, executionTime })
+				resolve({ stdout, stderr, executionTime, exitCode: code ?? undefined })
 			})
 
 			if (input) {
@@ -379,29 +395,78 @@ export class CompilerService {
 		input: string,
 		timeLimit: number,
 		container: string
-	): Promise<{ stdout: string; stderr: string; executionTime: number }> {
+	): Promise<{
+		stdout: string
+		stderr: string
+		executionTime: number
+		exitCode?: number
+	}> {
 		const startTime = Date.now()
 
+		// Use timeout with SIGKILL to avoid false segfault reports
+		// Disable core dumps to prevent false segfault reports
+		// Redirect stderr to stdout to capture all output
 		const runResult = await this.executeCommand(
 			'docker',
 			[
 				'exec',
 				'-i',
 				container,
-				'timeout',
-				`${Math.ceil(timeLimit / 1000)}s`,
 				'sh',
 				'-c',
-				`./${executableFileName}`
+				// Disable core dumps (ulimit -c 0) and run with timeout
+				`ulimit -c 0 && timeout -s KILL ${Math.ceil(
+					timeLimit / 1000
+				)}s ./${executableFileName} 2>&1`
 			],
 			input,
 			timeLimit + 1500
 		)
 
+		// Filter out timeout-related false segfault messages
+		// When timeout kills a process, it might report "dumped core" which isn't a real segfault
+		// Since we redirect stderr to stdout (2>&1), segfault messages might be in stdout
+		let filteredStderr = runResult.stderr
+		let filteredStdout = runResult.stdout
+
+		// Check if this is a timeout-related kill (timeout command exits with status 124)
+		// Also check for timeout messages in both stdout and stderr
+		const hasTimeoutMessage =
+			filteredStderr.includes('timeout:') ||
+			filteredStdout.includes('timeout:') ||
+			filteredStderr.includes('Terminated') ||
+			filteredStdout.includes('Terminated') ||
+			filteredStderr.includes('Killed') ||
+			filteredStdout.includes('Killed')
+
+		// Check for segfault messages in both stdout and stderr
+		const hasSegfaultMessage =
+			filteredStderr.includes('Segmentation fault') ||
+			filteredStdout.includes('Segmentation fault') ||
+			filteredStderr.includes('segmentation fault') ||
+			filteredStdout.includes('segmentation fault')
+
+		// If we have both timeout and segfault, it's likely a false positive from timeout kill
+		if (hasTimeoutMessage && hasSegfaultMessage) {
+			// Remove segfault messages from both stdout and stderr
+			filteredStdout = filteredStdout
+				.replace(/Segmentation fault.*core dumped[^\n]*\n?/gi, '')
+				.replace(/segmentation fault.*core dumped[^\n]*\n?/gi, '')
+				.replace(/timeout:.*dumped core[^\n]*\n?/gi, '')
+				.trim()
+
+			filteredStderr = filteredStderr
+				.replace(/Segmentation fault.*core dumped[^\n]*\n?/gi, '')
+				.replace(/segmentation fault.*core dumped[^\n]*\n?/gi, '')
+				.replace(/timeout:.*dumped core[^\n]*\n?/gi, '')
+				.trim()
+		}
+
 		return {
-			stdout: runResult.stdout,
-			stderr: runResult.stderr,
-			executionTime: Date.now() - startTime
+			stdout: filteredStdout,
+			stderr: filteredStderr,
+			executionTime: Date.now() - startTime,
+			exitCode: runResult.exitCode
 		}
 	}
 
@@ -452,12 +517,13 @@ export class CompilerService {
 		// Track active compilation
 		this.activeCompilations.add(workspaceId)
 
+		let container: string | undefined
 		try {
 			// Ensure containers are ready first
 			await this.ensureContainer()
 
 			// Get container for this compilation
-			const container = this.getNextContainer()
+			container = this.getNextContainer()
 
 			const startTime = Date.now()
 
@@ -517,11 +583,16 @@ export class CompilerService {
 			const compilationTime = Date.now() - compileStart
 
 			// Check for runtime errors in output
+			// Filter out timeout-related false positives
+			const hasRealSegfault =
+				programOutput.includes('Segmentation fault') &&
+				!programOutput.includes('timeout:') &&
+				!stderr.includes('timeout:')
+
 			if (
-				programOutput.includes('Segmentation fault') ||
+				hasRealSegfault ||
 				programOutput.includes('Floating point exception') ||
-				programOutput.includes('dumped core') ||
-				stderr.includes('killed')
+				(stderr.includes('killed') && !stderr.includes('timeout:'))
 			) {
 				const errorCode = detectErrorCode(programOutput + ' ' + stderr)
 				const errorInfo = createErrorMessage(errorCode, programOutput)
@@ -544,12 +615,14 @@ export class CompilerService {
 			}
 		} catch (error) {
 			// Cleanup on error - async, don't wait
-			this.executeCommand(
-				'docker',
-				['exec', container, 'rm', '-f', sourceFileName, executableFileName],
-				undefined,
-				1500
-			).catch(() => {})
+			if (container) {
+				this.executeCommand(
+					'docker',
+					['exec', container, 'rm', '-f', sourceFileName, executableFileName],
+					undefined,
+					1500
+				).catch(() => {})
+			}
 
 			const errorMessage =
 				error instanceof Error ? error.message : 'Unknown error'
@@ -633,12 +706,13 @@ export class CompilerService {
 		// Track active compilation
 		this.activeCompilations.add(workspaceId)
 
+		let container: string | undefined
 		try {
 			// Ensure containers are ready first
 			await this.ensureContainer()
 
 			// Get container for this judge session
-			const container = this.getNextContainer()
+			container = this.getNextContainer()
 
 			// 1) Compile once with specified optimization level
 			const optimizationLevel = request.optimizationLevel ?? 0
@@ -652,16 +726,17 @@ export class CompilerService {
 
 			if (!compileResult.success) {
 				// All tests fail
-				const sanitizedError = sanitizeErrorMessage(
-					compileResult.error || 'Unknown compilation error'
-				)
+				const errorMessage = compileResult.error || 'Unknown compilation error'
+				const sanitizedError = sanitizeErrorMessage(errorMessage)
+
 				for (let i = 0; i < request.testCases.length; i++) {
 					results.push({
 						testCase: i + 1,
 						passed: false,
 						input: request.testCases[i].input,
 						expectedOutput: request.testCases[i].expectedOutput,
-						error: `Compilation error: ${sanitizedError}`
+						error: `Compilation error: ${sanitizedError}`,
+						actualOutput: undefined
 					})
 				}
 
@@ -710,10 +785,79 @@ export class CompilerService {
 					)
 
 					testResult.executionTime = runResult.executionTime
-					testResult.actualOutput = runResult.stdout
 
-					if (runResult.stderr && !runResult.stdout) {
+					// Check exit code first - most reliable indicator
+					// Exit code 139 = 128 + 11 (SIGSEGV) = real segfault
+					// Exit code 124 = timeout command's exit code
+					// Exit code 137 = 128 + 9 (SIGKILL) = killed (timeout or OOM)
+					const isRealSegfault = runResult.exitCode === 139
+					const isTimeoutKill =
+						runResult.exitCode === 124 || runResult.exitCode === 137
+
+					// Check for errors in both stdout and stderr (since stderr might be redirected)
+					const combinedOutput = (
+						runResult.stdout +
+						' ' +
+						runResult.stderr
+					).toLowerCase()
+					const hasSegfaultMessage =
+						combinedOutput.includes('segmentation fault') ||
+						combinedOutput.includes('sigsegv')
+					const hasTimeoutMessage =
+						combinedOutput.includes('timeout:') ||
+						combinedOutput.includes('terminated') ||
+						combinedOutput.includes('killed')
+
+					// Filter out error messages from stdout for actualOutput
+					let cleanStdout = runResult.stdout
+					if (isRealSegfault || hasSegfaultMessage) {
+						// Remove segfault messages from actual output
+						cleanStdout = cleanStdout
+							.replace(/Segmentation fault.*core dumped[^\n]*\n?/gi, '')
+							.replace(/segmentation fault.*core dumped[^\n]*\n?/gi, '')
+							.replace(/Segmentation fault[^\n]*\n?/gi, '')
+							.replace(/segmentation fault[^\n]*\n?/gi, '')
+							.trim()
+					}
+					if (isTimeoutKill || hasTimeoutMessage) {
+						// Remove timeout messages from actual output
+						cleanStdout = cleanStdout
+							.replace(/timeout:.*[^\n]*\n?/gi, '')
+							.replace(/Terminated[^\n]*\n?/gi, '')
+							.replace(/Killed[^\n]*\n?/gi, '')
+							.trim()
+					}
+
+					testResult.actualOutput = cleanStdout || undefined
+
+					// Prioritize exit code over message content
+					if (isRealSegfault) {
+						// Exit code 139 = definite real segfault
+						testResult.error = sanitizeErrorMessage(
+							runResult.stderr || 'Segmentation fault'
+						)
+						failed++
+					} else if (isTimeoutKill) {
+						// Exit code 124 or 137 = timeout/kill
+						testResult.error = 'Time limit exceeded'
+						failed++
+					} else if (hasSegfaultMessage && hasTimeoutMessage) {
+						// Both messages present but exit code doesn't indicate segfault - likely timeout
+						testResult.error = 'Time limit exceeded'
+						failed++
+					} else if (runResult.stderr && !runResult.stdout) {
+						// Only stderr, no stdout - treat as error
 						testResult.error = sanitizeErrorMessage(runResult.stderr)
+						failed++
+					} else if (
+						hasSegfaultMessage &&
+						!hasTimeoutMessage &&
+						!isTimeoutKill
+					) {
+						// Segfault message without timeout indicators and not a timeout kill
+						testResult.error = sanitizeErrorMessage(
+							runResult.stderr || runResult.stdout || 'Segmentation fault'
+						)
 						failed++
 					} else {
 						// Compare output
@@ -747,12 +891,14 @@ export class CompilerService {
 			).catch(() => {})
 		} catch (error) {
 			// Cleanup on error - async, don't wait
-			this.executeCommand(
-				'docker',
-				['exec', container, 'rm', '-f', sourceFileName, executableFileName],
-				undefined,
-				1500
-			).catch(() => {})
+			if (container) {
+				this.executeCommand(
+					'docker',
+					['exec', container, 'rm', '-f', sourceFileName, executableFileName],
+					undefined,
+					1500
+				).catch(() => {})
+			}
 
 			const errorMessage =
 				error instanceof Error ? error.message : 'Unknown error'
