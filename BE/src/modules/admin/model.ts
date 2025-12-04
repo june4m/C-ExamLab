@@ -91,6 +91,7 @@ export const RemoveStudentResponseSchema = t.Object({
 })
 
 export type RemoveStudentResponse = typeof RemoveStudentResponseSchema.static
+
 // Schema for get testcases request
 export const GetTestcasesSchema = t.Object({
 	questionId: t.String()

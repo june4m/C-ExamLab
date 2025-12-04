@@ -58,7 +58,6 @@ function useCreateRoom() {
 				},
 				body: JSON.stringify(payload)
 			})
-			console.log(payload)
 			const json = (await res.json()) as CreateRoomResponse
 			if (!res.ok || !json.success) {
 				throw new Error(json.message || 'Failed to create room')

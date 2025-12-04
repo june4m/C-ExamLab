@@ -47,7 +47,8 @@ export const rooms = mysqlTable('rooms', {
 	),
 	updatedAt: datetime('updated_at', { fsp: 6 }).default(
 		sql`CURRENT_TIMESTAMP(6)`
-	)
+	),
+	reminderSentAt: datetime('reminder_sent_at', { fsp: 6 })
 })
 
 // 3. room_participants table
@@ -105,8 +106,8 @@ export const testCases = mysqlTable(
 			.notNull()
 			.references(() => questions.uuid),
 		index: int('index').notNull(),
-		input_path: text('input_path').notNull(),
-		output_path: text('output_path').notNull(),
+		inputPath: text('input_path').notNull(),
+		outputPath: text('output_path').notNull(),
 		isHidden: tinyint('is_hidden').default(1)
 	},
 	table => ({

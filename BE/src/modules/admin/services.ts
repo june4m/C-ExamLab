@@ -546,8 +546,8 @@ export const adminService = {
 			.select({
 				testcaseId: testCases.uuid,
 				index: testCases.index,
-				input_path: testCases.input_path,
-				output_path: testCases.output_path,
+				input_path: testCases.inputPath,
+				output_path: testCases.outputPath,
 				is_hidden: testCases.isHidden
 			})
 			.from(testCases)
@@ -627,8 +627,8 @@ export const adminService = {
 			.values({
 				questionUuid: questionId,
 				index,
-				input_path,
-				output_path,
+				inputPath: input_path,
+				outputPath: output_path,
 				isHidden: isHiddenValue
 			})
 			.$returningId()
@@ -728,8 +728,8 @@ export const adminService = {
 			.update(testCases)
 			.set({
 				index,
-				input_path,
-				output_path,
+				inputPath: input_path,
+				outputPath: output_path,
 				isHidden: isHiddenValue
 			})
 			.where(eq(testCases.uuid, testcaseId))

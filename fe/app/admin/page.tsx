@@ -242,7 +242,7 @@ export default function AdminDashboardPage() {
     <div className="container mx-auto p-6">
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground">Overall overview of the exam management system</p>
+        <p className="text-muted-foreground">Tổng quan hệ thống quản lý phòng thi</p>
       </div>
 
       {/* Stats Cards */}
