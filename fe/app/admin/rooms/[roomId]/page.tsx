@@ -70,7 +70,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Pencil, Trash2, Info, UserPlus, Check } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || ''
+import { axiosGeneral as axios } from '@/common/axios'
 
 interface RoomData {
 	uuid: string
@@ -169,46 +169,32 @@ interface RoomScoresResponse {
 }
 
 function useGetRoom(roomId: string) {
-	const token = useAuthStore(state => state.token)
-
 	return useQuery({
 		queryKey: ['admin-room', roomId],
 		queryFn: async () => {
-			const res = await fetch(`${API_BASE_URL}/admin/rooms/${roomId}`, {
-				headers: { Authorization: `Bearer ${token}` }
-			})
-			const json = (await res.json()) as RoomResponse
-			if (!res.ok || !json.success) {
-				throw new Error(json.message || 'Failed to fetch room')
+			const { data } = await axios.get<RoomResponse>(`/admin/rooms/${roomId}`)
+			if (!data.success) {
+				throw new Error(data.message || 'Failed to fetch room')
 			}
-			return json.data
+			return data.data
 		},
 		enabled: !!roomId
 	})
 }
 
 function useUpdateRoom(roomId: string) {
-	const token = useAuthStore(state => state.token)
 	const queryClient = useQueryClient()
 
 	return useMutation({
 		mutationFn: async (payload: UpdateRoomRequest) => {
-			const res = await fetch(
-				`${API_BASE_URL}/admin/rooms/update-room/${roomId}`,
-				{
-					method: 'PUT',
-					headers: {
-						'Content-Type': 'application/json',
-						Authorization: `Bearer ${token}`
-					},
-					body: JSON.stringify(payload)
-				}
+			const { data } = await axios.put(
+				`/admin/rooms/update-room/${roomId}`,
+				payload
 			)
-			const json = await res.json()
-			if (!res.ok || !json.success) {
-				throw new Error(json.message || 'Failed to update room')
+			if (!data.success) {
+				throw new Error(data.message || 'Failed to update room')
 			}
-			return json
+			return data
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['admin-room', roomId] })
@@ -218,64 +204,47 @@ function useUpdateRoom(roomId: string) {
 }
 
 function useGetRoomQuestions(roomId: string) {
-	const token = useAuthStore(state => state.token)
-
 	return useQuery({
 		queryKey: ['admin-room-questions', roomId],
 		queryFn: async () => {
-			const res = await fetch(
-				`${API_BASE_URL}/admin/questions/room/${roomId}`,
-				{
-					headers: { Authorization: `Bearer ${token}` }
-				}
+			const { data } = await axios.get<RoomQuestionsResponse>(
+				`/admin/questions/room/${roomId}`
 			)
-			const json = (await res.json()) as RoomQuestionsResponse
-			if (!res.ok || !json.success) {
-				throw new Error(json.message || 'Failed to fetch questions')
+			if (!data.success) {
+				throw new Error(data.message || 'Failed to fetch questions')
 			}
-			return json.data
+			return data.data
 		},
 		enabled: !!roomId
 	})
 }
 
 function useGetRoomParticipants(roomId: string) {
-	const token = useAuthStore(state => state.token)
-
 	return useQuery({
 		queryKey: ['admin-room-participants', roomId],
 		queryFn: async () => {
-			const res = await fetch(
-				`${API_BASE_URL}/admin/room/${roomId}/participants`,
-				{
-					headers: { Authorization: `Bearer ${token}` }
-				}
+			const { data } = await axios.get<RoomParticipantsResponse>(
+				`/admin/room/${roomId}/participants`
 			)
-			const json = (await res.json()) as RoomParticipantsResponse
-			if (!res.ok || !json.success) {
-				throw new Error(json.message || 'Failed to fetch participants')
+			if (!data.success) {
+				throw new Error(data.message || 'Failed to fetch participants')
 			}
-			return json.data
+			return data.data
 		},
 		enabled: !!roomId
 	})
 }
 
 function useBanUser(roomId: string) {
-	const token = useAuthStore(state => state.token)
 	const queryClient = useQueryClient()
 
 	return useMutation({
 		mutationFn: async (userId: string) => {
-			const res = await fetch(`${API_BASE_URL}/admin/users/${userId}/ban`, {
-				method: 'POST',
-				headers: { Authorization: `Bearer ${token}` }
-			})
-			const json = await res.json()
-			if (!res.ok || !json.success) {
-				throw new Error(json.message || 'Failed to ban user')
+			const { data } = await axios.post(`/admin/users/${userId}/ban`)
+			if (!data.success) {
+				throw new Error(data.message || 'Failed to ban user')
 			}
-			return json
+			return data
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({
@@ -286,20 +255,15 @@ function useBanUser(roomId: string) {
 }
 
 function useUnbanUser(roomId: string) {
-	const token = useAuthStore(state => state.token)
 	const queryClient = useQueryClient()
 
 	return useMutation({
 		mutationFn: async (userId: string) => {
-			const res = await fetch(`${API_BASE_URL}/admin/users/${userId}/unban`, {
-				method: 'POST',
-				headers: { Authorization: `Bearer ${token}` }
-			})
-			const json = await res.json()
-			if (!res.ok || !json.success) {
-				throw new Error(json.message || 'Failed to unban user')
+			const { data } = await axios.post(`/admin/users/${userId}/unban`)
+			if (!data.success) {
+				throw new Error(data.message || 'Failed to unban user')
 			}
-			return json
+			return data
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({
@@ -310,24 +274,18 @@ function useUnbanUser(roomId: string) {
 }
 
 function useAddStudentsToRoom(roomId: string) {
-	const token = useAuthStore(state => state.token)
 	const queryClient = useQueryClient()
 
 	return useMutation({
 		mutationFn: async (studentIds: string[]) => {
-			const res = await fetch(`${API_BASE_URL}/admin/room/add-students`, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					Authorization: `Bearer ${token}`
-				},
-				body: JSON.stringify({ roomId, studentIds })
+			const { data } = await axios.post('/admin/room/add-students', {
+				roomId,
+				studentIds
 			})
-			const json = await res.json()
-			if (!res.ok || !json.success) {
-				throw new Error(json.message || 'Failed to add students')
+			if (!data.success) {
+				throw new Error(data.message || 'Failed to add students')
 			}
-			return json
+			return data
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({
@@ -338,19 +296,16 @@ function useAddStudentsToRoom(roomId: string) {
 }
 
 function useGetRoomScores(roomId: string) {
-	const token = useAuthStore(state => state.token)
-
 	return useQuery({
 		queryKey: ['admin-room-scores', roomId],
 		queryFn: async () => {
-			const res = await fetch(`${API_BASE_URL}/admin/room/${roomId}/scores`, {
-				headers: { Authorization: `Bearer ${token}` }
-			})
-			const json = (await res.json()) as RoomScoresResponse
-			if (!res.ok || !json.success) {
-				throw new Error(json.message || 'Failed to fetch scores')
+			const { data } = await axios.get<RoomScoresResponse>(
+				`/admin/room/${roomId}/scores`
+			)
+			if (!data.success) {
+				throw new Error(data.message || 'Failed to fetch scores')
 			}
-			return json.data
+			return data.data
 		},
 		enabled: !!roomId
 	})

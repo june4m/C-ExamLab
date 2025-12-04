@@ -24,9 +24,7 @@ import {
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useAuthStore } from '@/store/auth.store'
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || ''
+import { axiosGeneral as axios } from '@/common/axios'
 
 interface CreateRoomRequest {
 	name: string
@@ -46,28 +44,35 @@ interface CreateRoomResponse {
 }
 
 function useCreateRoom() {
-	const token = useAuthStore(state => state.token)
-
 	return useMutation({
 		mutationFn: async (payload: CreateRoomRequest) => {
 			console.log('Creating room with payload:', payload)
-			const res = await fetch(`${API_BASE_URL}/admin/rooms/create-room`, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					Authorization: `Bearer ${token}`
-				},
-				body: JSON.stringify(payload)
-			})
-			const json = (await res.json()) as CreateRoomResponse
-			console.log('Create room response:', json)
-			if (!res.ok || !json.success) {
+			try {
+				const { data } = await axios.post<CreateRoomResponse>(
+					'/admin/rooms/create-room',
+					payload
+				)
+				console.log('Create room response:', data)
+				if (!data.success) {
+					const errorMsg =
+						data.message ||
+						(data as CreateRoomResponse & { error?: string }).error ||
+						'Failed to create room'
+					console.error('Create room error:', errorMsg)
+					throw new Error(errorMsg)
+				}
+				return data
+			} catch (error: unknown) {
 				const errorMsg =
-					json.message || (json as any).error || 'Failed to create room'
+					(error as { response?: { data?: { message?: string; error?: string } }; message?: string })
+						?.response?.data?.message ||
+					(error as { response?: { data?: { message?: string; error?: string } }; message?: string })
+						?.response?.data?.error ||
+					(error as { message?: string })?.message ||
+					'Failed to create room'
 				console.error('Create room error:', errorMsg)
 				throw new Error(errorMsg)
 			}
-			return json
 		}
 	})
 }
@@ -158,12 +163,14 @@ export default function CreateRoomPage() {
 				queryClient.invalidateQueries({ queryKey: ['admin-rooms'] })
 				router.push('/admin/rooms')
 			},
-			onError: (err: any) => {
+			onError: (err: unknown) => {
 				console.error('Create room error details:', err)
 				const errorMsg =
-					err?.response?.data?.error ||
-					err?.response?.data?.message ||
-					err?.message ||
+					(err as { response?: { data?: { error?: string; message?: string } }; message?: string })
+						?.response?.data?.error ||
+					(err as { response?: { data?: { error?: string; message?: string } }; message?: string })
+						?.response?.data?.message ||
+					(err as { message?: string })?.message ||
 					'Failed to create room'
 				setError(errorMsg)
 			}
