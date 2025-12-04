@@ -112,6 +112,40 @@ export const userService = {
 			return wrapResponse(null, 404, '', 'Room not found')
 		}
 
+		// Check if student is in the room (added by admin)
+		const [existingParticipant] = await db
+			.select()
+			.from(roomParticipants)
+			.where(
+				and(
+					eq(roomParticipants.roomUuid, room.uuid),
+					eq(roomParticipants.accountUuid, user.userId)
+				)
+			)
+
+		// Student must be added to room by admin first
+		if (!existingParticipant) {
+			set.status = 403
+			return wrapResponse(
+				null,
+				403,
+				'',
+				'You are not registered for this exam room. Please contact admin.'
+			)
+		}
+
+		// Check if student already joined (joined_at is not null)
+		if (existingParticipant.joinedAt) {
+			const response: JoinRoomResponse = {
+				message: 'Already joined',
+				roomId: room.uuid,
+				roomName: room.name,
+				openTime: room.openTime?.toISOString() ?? null,
+				closeTime: room.closeTime?.toISOString() ?? null
+			}
+			return wrapResponse(response, 200, 'You are already in this room')
+		}
+
 		const now = new Date()
 
 		// Check if room has openTime
@@ -139,34 +173,11 @@ export const userService = {
 			return wrapResponse(null, 400, '', 'Room is already closed')
 		}
 
-		// Check if student is already in the room
-		const [existingParticipant] = await db
-			.select()
-			.from(roomParticipants)
-			.where(
-				and(
-					eq(roomParticipants.roomUuid, room.uuid),
-					eq(roomParticipants.accountUuid, user.userId)
-				)
-			)
-
-		if (existingParticipant) {
-			// Already joined, return success
-			const response: JoinRoomResponse = {
-				message: 'Already joined',
-				roomId: room.uuid,
-				roomName: room.name,
-				openTime: room.openTime?.toISOString() ?? null,
-				closeTime: room.closeTime?.toISOString() ?? null
-			}
-			return wrapResponse(response, 200, 'You are already in this room')
-		}
-
-		// Add student to room
-		await db.insert(roomParticipants).values({
-			roomUuid: room.uuid,
-			accountUuid: user.userId
-		})
+		// Update joined_at to mark student as joined
+		await db
+			.update(roomParticipants)
+			.set({ joinedAt: now })
+			.where(eq(roomParticipants.uuid, existingParticipant.uuid))
 
 		const response: JoinRoomResponse = {
 			message: 'success',
@@ -176,7 +187,7 @@ export const userService = {
 			closeTime: room.closeTime?.toISOString() ?? null
 		}
 
-		return wrapResponse(response, 201, 'Joined room successfully')
+		return wrapResponse(response, 200, 'Joined room successfully')
 	},
 
 	updateProfile: async ({ body, user, set }: any) => {
@@ -187,37 +198,67 @@ export const userService = {
 
 		const { studentId, full_name, email } = body as UpdateStudentProfileDto
 
-		// Verify the studentId matches the authenticated user
-		if (studentId !== user.userId) {
-			set.status = 403
-			return wrapResponse(null, 403, '', 'You can only update your own profile')
+		// Determine target user ID - admin can update any user, regular user can only update themselves
+		const targetUserId = studentId || user.userId
+
+		// If studentId is provided and different from current user, check if user is admin
+		if (studentId && studentId !== user.userId) {
+			// Get current user's role
+			const [currentUser] = await db
+				.select({ role: accounts.role })
+				.from(accounts)
+				.where(eq(accounts.uuid, user.userId))
+
+			if (!currentUser || currentUser.role !== 'ADMIN') {
+				set.status = 403
+				return wrapResponse(
+					null,
+					403,
+					'',
+					'You can only update your own profile'
+				)
+			}
+		}
+
+		// Check if target user exists
+		const [targetUser] = await db
+			.select({ uuid: accounts.uuid })
+			.from(accounts)
+			.where(eq(accounts.uuid, targetUserId))
+
+		if (!targetUser) {
+			set.status = 404
+			return wrapResponse(null, 404, '', 'User not found')
 		}
 
 		// Check if email already exists for another user
-		const [existingUser] = await db
-			.select({ uuid: accounts.uuid })
-			.from(accounts)
-			.where(eq(accounts.email, email))
+		if (email) {
+			const [existingUser] = await db
+				.select({ uuid: accounts.uuid })
+				.from(accounts)
+				.where(eq(accounts.email, email))
 
-		if (existingUser && existingUser.uuid !== user.userId) {
-			set.status = 400
-			return wrapResponse(
-				null,
-				400,
-				'',
-				'Email already in use by another account'
-			)
+			if (existingUser && existingUser.uuid !== targetUserId) {
+				set.status = 400
+				return wrapResponse(
+					null,
+					400,
+					'',
+					'Email already in use by another account'
+				)
+			}
 		}
+
+		// Build update object
+		const updateData: any = { updatedAt: new Date() }
+		if (full_name !== undefined) updateData.fullName = full_name
+		if (email !== undefined) updateData.email = email
 
 		// Update the profile
 		await db
 			.update(accounts)
-			.set({
-				fullName: full_name,
-				email: email,
-				updatedAt: new Date()
-			})
-			.where(eq(accounts.uuid, user.userId))
+			.set(updateData)
+			.where(eq(accounts.uuid, targetUserId))
 
 		const response: UpdateStudentProfileResponse = {
 			message: 'success'

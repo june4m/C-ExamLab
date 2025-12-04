@@ -5,7 +5,8 @@ import {
 	rooms,
 	roomParticipants,
 	questions,
-	testCases
+	testCases,
+	submissions
 } from '../../common/database/schema'
 import { wrapResponse } from '../../common/dtos/response'
 import type {
@@ -17,7 +18,12 @@ import type {
 	RoomParticipant,
 	RoomParticipantsList,
 	RemoveStudentResponse,
-	GetTestcasesResponse
+	GetTestcasesResponse,
+	CreateTestcaseDto,
+	CreateTestcaseResponse,
+	UpdateTestcaseDto,
+	UpdateTestcaseResponse,
+	RoomScoresResponse
 } from './model'
 
 // Helper to format student data
@@ -306,10 +312,11 @@ export const adminService = {
 			return wrapResponse(null, 409, '', 'Student is already in this room')
 		}
 
-		// Add student to room
+		// Add student to room with joined_at = null (student hasn't joined yet)
 		await db.insert(roomParticipants).values({
 			roomUuid: roomId,
-			accountUuid: studentId
+			accountUuid: studentId,
+			joinedAt: null
 		})
 
 		const response: AddStudentToRoomResponse = {
@@ -358,7 +365,8 @@ export const adminService = {
 				studentId: accounts.uuid,
 				studentFullName: accounts.fullName,
 				studentEmail: accounts.email,
-				joinedAt: roomParticipants.joinedAt
+				joinedAt: roomParticipants.joinedAt,
+				isBanned: accounts.isBanned
 			})
 			.from(roomParticipants)
 			.innerJoin(accounts, eq(roomParticipants.accountUuid, accounts.uuid))
@@ -369,7 +377,8 @@ export const adminService = {
 			studentId: p.studentId,
 			studentFullName: p.studentFullName ?? null,
 			studentEmail: p.studentEmail,
-			joinedAt: p.joinedAt?.toISOString() ?? null
+			joinedAt: p.joinedAt?.toISOString() ?? null,
+			isBanned: p.isBanned === 1
 		}))
 
 		const response: RoomParticipantsList = {
@@ -537,8 +546,8 @@ export const adminService = {
 			.select({
 				testcaseId: testCases.uuid,
 				index: testCases.index,
-				input_path: testCases.inputPath,
-				output_path: testCases.outputPath,
+				input_path: testCases.input_path,
+				output_path: testCases.output_path,
 				is_hidden: testCases.isHidden
 			})
 			.from(testCases)
@@ -549,12 +558,380 @@ export const adminService = {
 			testcaseList: testcaseList.map(tc => ({
 				testcaseId: tc.testcaseId,
 				index: tc.index,
-				input_path: tc.input_path,
-				output_path: tc.output_path,
+				input: tc.input_path,
+				output: tc.output_path,
 				is_hidden: tc.is_hidden ?? 1
 			}))
 		}
 
 		return wrapResponse(response, 200, 'Testcases retrieved successfully')
+	},
+
+	// Create a testcase for a question
+	createTestcase: async ({ body, user, set }: any) => {
+		const { questionId, index, input_path, output_path, is_hidden } =
+			body as CreateTestcaseDto
+
+		// Check if question exists
+		const [question] = await db
+			.select()
+			.from(questions)
+			.where(eq(questions.uuid, questionId))
+
+		if (!question) {
+			set.status = 404
+			return wrapResponse(null, 404, '', 'Question not found')
+		}
+
+		// Check if user is owner of the room containing this question
+		const [room] = await db
+			.select()
+			.from(rooms)
+			.where(eq(rooms.uuid, question.roomUuid))
+
+		if (!room || room.createdBy !== user.userId) {
+			set.status = 403
+			return wrapResponse(
+				null,
+				403,
+				'',
+				'Forbidden - You are not the owner of this room'
+			)
+		}
+
+		// Check if testcase with same index already exists
+		const [existingTestcase] = await db
+			.select()
+			.from(testCases)
+			.where(
+				and(eq(testCases.questionUuid, questionId), eq(testCases.index, index))
+			)
+
+		if (existingTestcase) {
+			set.status = 409
+			return wrapResponse(
+				null,
+				409,
+				'',
+				'Testcase with this index already exists'
+			)
+		}
+
+		// Convert is_hidden to number if boolean
+		const isHiddenValue =
+			typeof is_hidden === 'boolean' ? (is_hidden ? 1 : 0) : is_hidden
+
+		// Create testcase
+		const [newTestcase] = await db
+			.insert(testCases)
+			.values({
+				questionUuid: questionId,
+				index,
+				input_path,
+				output_path,
+				isHidden: isHiddenValue
+			})
+			.$returningId()
+
+		const response: CreateTestcaseResponse = {
+			message: 'success',
+			testcaseId: newTestcase.uuid
+		}
+
+		return wrapResponse(response, 201, 'Testcase created successfully')
+	},
+
+	// Update a testcase
+	updateTestcase: async ({ body, user, set }: any) => {
+		const {
+			questionId,
+			testcaseId,
+			index,
+			input_path,
+			output_path,
+			is_hidden
+		} = body as UpdateTestcaseDto
+
+		// Check if question exists
+		const [question] = await db
+			.select()
+			.from(questions)
+			.where(eq(questions.uuid, questionId))
+
+		if (!question) {
+			set.status = 404
+			return wrapResponse(null, 404, '', 'Question not found')
+		}
+
+		// Check if user is owner of the room containing this question
+		const [room] = await db
+			.select()
+			.from(rooms)
+			.where(eq(rooms.uuid, question.roomUuid))
+
+		if (!room || room.createdBy !== user.userId) {
+			set.status = 403
+			return wrapResponse(
+				null,
+				403,
+				'',
+				'Forbidden - You are not the owner of this room'
+			)
+		}
+
+		// Check if testcase exists
+		const [testcase] = await db
+			.select()
+			.from(testCases)
+			.where(eq(testCases.uuid, testcaseId))
+
+		if (!testcase) {
+			set.status = 404
+			return wrapResponse(null, 404, '', 'Testcase not found')
+		}
+
+		// Check if testcase belongs to the question
+		if (testcase.questionUuid !== questionId) {
+			set.status = 400
+			return wrapResponse(
+				null,
+				400,
+				'',
+				'Testcase does not belong to this question'
+			)
+		}
+
+		// Check if another testcase with same index exists (excluding current)
+		const [existingTestcase] = await db
+			.select()
+			.from(testCases)
+			.where(
+				and(eq(testCases.questionUuid, questionId), eq(testCases.index, index))
+			)
+
+		if (existingTestcase && existingTestcase.uuid !== testcaseId) {
+			set.status = 409
+			return wrapResponse(
+				null,
+				409,
+				'',
+				'Another testcase with this index already exists'
+			)
+		}
+
+		// Convert is_hidden to number if boolean
+		const isHiddenValue =
+			typeof is_hidden === 'boolean' ? (is_hidden ? 1 : 0) : is_hidden
+
+		// Update testcase
+		await db
+			.update(testCases)
+			.set({
+				index,
+				input_path,
+				output_path,
+				isHidden: isHiddenValue
+			})
+			.where(eq(testCases.uuid, testcaseId))
+
+		const response: UpdateTestcaseResponse = {
+			message: 'success'
+		}
+
+		return wrapResponse(response, 200, 'Testcase updated successfully')
+	},
+
+	// Delete a testcase
+	deleteTestcase: async ({ params, user, set }: any) => {
+		const { questionId, testcaseId } = params
+
+		// Check if question exists
+		const [question] = await db
+			.select()
+			.from(questions)
+			.where(eq(questions.uuid, questionId))
+
+		if (!question) {
+			set.status = 404
+			return wrapResponse(null, 404, '', 'Question not found')
+		}
+
+		// Check if user is owner of the room containing this question
+		const [room] = await db
+			.select()
+			.from(rooms)
+			.where(eq(rooms.uuid, question.roomUuid))
+
+		if (!room || room.createdBy !== user.userId) {
+			set.status = 403
+			return wrapResponse(
+				null,
+				403,
+				'',
+				'Forbidden - You are not the owner of this room'
+			)
+		}
+
+		// Check if testcase exists
+		const [testcase] = await db
+			.select()
+			.from(testCases)
+			.where(eq(testCases.uuid, testcaseId))
+
+		if (!testcase) {
+			set.status = 404
+			return wrapResponse(null, 404, '', 'Testcase not found')
+		}
+
+		// Check if testcase belongs to the question
+		if (testcase.questionUuid !== questionId) {
+			set.status = 400
+			return wrapResponse(
+				null,
+				400,
+				'',
+				'Testcase does not belong to this question'
+			)
+		}
+
+		// Delete testcase
+		await db.delete(testCases).where(eq(testCases.uuid, testcaseId))
+
+		return wrapResponse(
+			{ message: 'success' },
+			200,
+			'Testcase deleted successfully'
+		)
+	},
+
+	// Get all students' scores in a room
+	getRoomScores: async ({ params, user, set }: any) => {
+		const { roomId } = params
+
+		// Get room info
+		const [room] = await db
+			.select({
+				uuid: rooms.uuid,
+				code: rooms.code,
+				name: rooms.name,
+				openTime: rooms.openTime,
+				closeTime: rooms.closeTime,
+				createdBy: rooms.createdBy,
+				createdAt: rooms.createdAt,
+				updatedAt: rooms.updatedAt
+			})
+			.from(rooms)
+			.where(eq(rooms.uuid, roomId))
+
+		if (!room) {
+			set.status = 404
+			return wrapResponse(null, 404, '', 'Room not found')
+		}
+
+		// Check if user is owner of the room
+		if (room.createdBy !== user.userId) {
+			set.status = 403
+			return wrapResponse(
+				null,
+				403,
+				'',
+				'Forbidden - You are not the owner of this room'
+			)
+		}
+
+		// Get all participants in the room
+		const participants = await db
+			.select({
+				studentId: accounts.uuid,
+				studentFullName: accounts.fullName,
+				studentEmail: accounts.email
+			})
+			.from(roomParticipants)
+			.innerJoin(accounts, eq(roomParticipants.accountUuid, accounts.uuid))
+			.where(eq(roomParticipants.roomUuid, roomId))
+
+		// Get all questions in the room
+		const roomQuestions = await db
+			.select({
+				questionId: questions.uuid,
+				title: questions.title,
+				score: questions.score
+			})
+			.from(questions)
+			.where(eq(questions.roomUuid, roomId))
+
+		// Get all submissions for this room
+		const allSubmissions = await db
+			.select({
+				uuid: submissions.uuid,
+				questionUuid: submissions.questionUuid,
+				accountUuid: submissions.accountUuid,
+				score: submissions.score,
+				status: submissions.status
+			})
+			.from(submissions)
+			.innerJoin(questions, eq(submissions.questionUuid, questions.uuid))
+			.where(eq(questions.roomUuid, roomId))
+
+		// Calculate scores for each student
+		const studentsWithScores = participants.map(student => {
+			let totalScore = 0
+			const questionResults = roomQuestions.map(q => {
+				const studentSubmissions = allSubmissions.filter(
+					s =>
+						s.questionUuid === q.questionId &&
+						s.accountUuid === student.studentId
+				)
+				const attempts = studentSubmissions.length
+
+				let myScore = 0
+				let solved = false
+
+				for (const sub of studentSubmissions) {
+					if (sub.status === 'AC') {
+						solved = true
+						if ((sub.score ?? 0) > myScore) {
+							myScore = sub.score ?? q.score ?? 0
+						}
+					} else if ((sub.score ?? 0) > myScore) {
+						myScore = sub.score ?? 0
+					}
+				}
+
+				if (myScore === q.score) {
+					solved = true
+				}
+
+				totalScore += myScore
+
+				return {
+					questionId: q.questionId,
+					title: q.title,
+					maxScore: q.score,
+					myScore,
+					solved,
+					attempts
+				}
+			})
+
+			return {
+				studentId: student.studentId,
+				studentFullName: student.studentFullName ?? null,
+				studentEmail: student.studentEmail,
+				totalScore,
+				questions: questionResults
+			}
+		})
+
+		// Sort by totalScore descending
+		studentsWithScores.sort((a, b) => b.totalScore - a.totalScore)
+
+		const response: RoomScoresResponse = {
+			roomId: room.uuid,
+			roomName: room.name,
+			students: studentsWithScores
+		}
+
+		return wrapResponse(response, 200, 'Room scores retrieved successfully')
 	}
 }

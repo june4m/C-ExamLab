@@ -11,7 +11,12 @@ import {
 	RoomParticipantsListSchema,
 	RoomParticipantSchema,
 	RemoveStudentResponseSchema,
-	GetTestcasesResponseSchema
+	GetTestcasesResponseSchema,
+	CreateTestcaseSchema,
+	CreateTestcaseResponseSchema,
+	UpdateTestcaseSchema,
+	UpdateTestcaseResponseSchema,
+	RoomScoresResponseSchema
 } from './model'
 import { ApiResponseSchema } from '../../common/dtos/response'
 
@@ -194,6 +199,109 @@ export const admin = new Elysia({ prefix: '/admin', tags: ['Admin'] })
 		}),
 		response: {
 			200: ApiResponseSchema(GetTestcasesResponseSchema),
+			403: ApiResponseSchema(t.Null()),
+			404: ApiResponseSchema(t.Null()),
+			500: ApiResponseSchema(t.Null())
+		}
+	})
+
+	// Create a testcase
+	.post('/testcases', adminService.createTestcase, {
+		detail: {
+			summary: 'Create testcase',
+			description: 'Create a new testcase for a question.'
+		},
+		body: CreateTestcaseSchema,
+		response: {
+			201: ApiResponseSchema(CreateTestcaseResponseSchema),
+			403: ApiResponseSchema(t.Null()),
+			404: ApiResponseSchema(t.Null()),
+			409: ApiResponseSchema(t.Null()),
+			500: ApiResponseSchema(t.Null())
+		}
+	})
+
+	// Update a testcase
+	.put('/testcases', adminService.updateTestcase, {
+		detail: {
+			summary: 'Update testcase',
+			description: 'Update an existing testcase.'
+		},
+		body: UpdateTestcaseSchema,
+		response: {
+			200: ApiResponseSchema(UpdateTestcaseResponseSchema),
+			400: ApiResponseSchema(t.Null()),
+			403: ApiResponseSchema(t.Null()),
+			404: ApiResponseSchema(t.Null()),
+			409: ApiResponseSchema(t.Null()),
+			500: ApiResponseSchema(t.Null())
+		}
+	})
+
+	// Delete a testcase
+	.delete('/testcases/:questionId/:testcaseId', adminService.deleteTestcase, {
+		detail: {
+			summary: 'Delete testcase',
+			description: 'Delete a testcase from a question.'
+		},
+		params: t.Object({
+			questionId: t.String(),
+			testcaseId: t.String()
+		}),
+		response: {
+			200: ApiResponseSchema(t.Object({ message: t.String() })),
+			400: ApiResponseSchema(t.Null()),
+			403: ApiResponseSchema(t.Null()),
+			404: ApiResponseSchema(t.Null()),
+			500: ApiResponseSchema(t.Null())
+		}
+	})
+
+	// Create a testcase for a question
+	.post('/testcases/create-testcase', adminService.createTestcase, {
+		detail: {
+			summary: 'Create testcase',
+			description: 'Create a new testcase for a specific question.'
+		},
+		body: CreateTestcaseSchema,
+		response: {
+			201: ApiResponseSchema(CreateTestcaseResponseSchema),
+			403: ApiResponseSchema(t.Null()),
+			404: ApiResponseSchema(t.Null()),
+			409: ApiResponseSchema(t.Null()),
+			500: ApiResponseSchema(t.Null())
+		}
+	})
+
+	// Update a testcase
+	.put('/testcases/update-testcase', adminService.updateTestcase, {
+		detail: {
+			summary: 'Update testcase',
+			description: 'Update an existing testcase for a specific question.'
+		},
+		body: UpdateTestcaseSchema,
+		response: {
+			200: ApiResponseSchema(UpdateTestcaseResponseSchema),
+			400: ApiResponseSchema(t.Null()),
+			403: ApiResponseSchema(t.Null()),
+			404: ApiResponseSchema(t.Null()),
+			409: ApiResponseSchema(t.Null()),
+			500: ApiResponseSchema(t.Null())
+		}
+	})
+
+	// ==================== SCORES ====================
+
+	// Get all students' scores in a room
+	.get('/room/:roomId/scores', adminService.getRoomScores, {
+		detail: {
+			summary: 'Get room scores',
+			description:
+				'Get all students scores and their question results in a room.'
+		},
+		params: t.Object({ roomId: t.String() }),
+		response: {
+			200: ApiResponseSchema(RoomScoresResponseSchema),
 			403: ApiResponseSchema(t.Null()),
 			404: ApiResponseSchema(t.Null()),
 			500: ApiResponseSchema(t.Null())
