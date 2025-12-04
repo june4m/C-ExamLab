@@ -37,9 +37,20 @@ const formatStudent = (account: any): Student => ({
 	updatedAt: account.updatedAt?.toISOString() ?? null
 })
 
+// Helper to select room columns
+const selectRoomColumns = {
+	uuid: rooms.uuid,
+	code: rooms.code,
+	name: rooms.name,
+	openTime: rooms.openTime,
+	closeTime: rooms.closeTime,
+	createdBy: rooms.createdBy,
+	createdAt: rooms.createdAt,
+	updatedAt: rooms.updatedAt
+}
+
 export const adminService = {
 	getStudents: async () => {
-		// Get all users with role = 'USER' (students)
 		const students = await db
 			.select()
 			.from(accounts)
@@ -55,7 +66,6 @@ export const adminService = {
 	getStudentsByName: async ({ params }: any) => {
 		const { userName } = params
 
-		// Search students by name (partial match)
 		const students = await db
 			.select()
 			.from(accounts)
@@ -74,7 +84,6 @@ export const adminService = {
 		const { userId } = params
 		const { studentFullName, studentEmail } = body
 
-		// Check if user exists
 		const [user] = await db
 			.select()
 			.from(accounts)
@@ -85,7 +94,6 @@ export const adminService = {
 			return wrapResponse(null, 404, '', 'User not found')
 		}
 
-		// Check if email already exists (if updating email)
 		if (studentEmail && studentEmail !== user.email) {
 			const [existingUser] = await db
 				.select()
@@ -104,7 +112,6 @@ export const adminService = {
 
 		await db.update(accounts).set(updateValues).where(eq(accounts.uuid, userId))
 
-		// Get updated user
 		const [updatedUser] = await db
 			.select()
 			.from(accounts)
@@ -120,7 +127,6 @@ export const adminService = {
 	banUser: async ({ params, set }: any) => {
 		const { userId } = params
 
-		// Check if user exists
 		const [user] = await db
 			.select()
 			.from(accounts)
@@ -131,13 +137,11 @@ export const adminService = {
 			return wrapResponse(null, 404, '', 'User not found')
 		}
 
-		// Cannot ban admin
 		if (user.role === 'ADMIN') {
 			set.status = 400
 			return wrapResponse(null, 400, '', 'Cannot ban admin user')
 		}
 
-		// Check if already banned
 		if (user.isBanned === 1) {
 			set.status = 400
 			return wrapResponse(null, 400, '', 'User is already banned')
@@ -154,7 +158,6 @@ export const adminService = {
 	unbanUser: async ({ params, set }: any) => {
 		const { userId } = params
 
-		// Check if user exists
 		const [user] = await db
 			.select()
 			.from(accounts)
@@ -165,7 +168,6 @@ export const adminService = {
 			return wrapResponse(null, 404, '', 'User not found')
 		}
 
-		// Check if not banned
 		if (user.isBanned === 0) {
 			set.status = 400
 			return wrapResponse(null, 400, '', 'User is not banned')
@@ -186,18 +188,8 @@ export const adminService = {
 	getLeaderboard: async ({ params, user, set }: any) => {
 		const { roomId } = params
 
-		// Get room info
 		const [room] = await db
-			.select({
-				uuid: rooms.uuid,
-				code: rooms.code,
-				name: rooms.name,
-				openTime: rooms.openTime,
-				closeTime: rooms.closeTime,
-				createdBy: rooms.createdBy,
-				createdAt: rooms.createdAt,
-				updatedAt: rooms.updatedAt
-			})
+			.select(selectRoomColumns)
 			.from(rooms)
 			.where(eq(rooms.uuid, roomId))
 
@@ -206,7 +198,6 @@ export const adminService = {
 			return wrapResponse(null, 404, '', 'Room not found')
 		}
 
-		// Check if user is owner of the room
 		if (room.createdBy !== user.userId) {
 			set.status = 403
 			return wrapResponse(
@@ -217,7 +208,6 @@ export const adminService = {
 			)
 		}
 
-		// Get all participants in the room
 		const participants = await db
 			.select({
 				studentId: accounts.uuid,
@@ -248,18 +238,8 @@ export const adminService = {
 	addStudentToRoom: async ({ body, user, set }: any) => {
 		const { roomId, studentIds } = body as AddStudentToRoomDto
 
-		// Check if room exists
 		const [room] = await db
-			.select({
-				uuid: rooms.uuid,
-				code: rooms.code,
-				name: rooms.name,
-				openTime: rooms.openTime,
-				closeTime: rooms.closeTime,
-				createdBy: rooms.createdBy,
-				createdAt: rooms.createdAt,
-				updatedAt: rooms.updatedAt
-			})
+			.select(selectRoomColumns)
 			.from(rooms)
 			.where(eq(rooms.uuid, roomId))
 
@@ -268,7 +248,6 @@ export const adminService = {
 			return wrapResponse(null, 404, '', 'Room not found')
 		}
 
-		// Check if user is owner of the room
 		if (room.createdBy !== user.userId) {
 			set.status = 403
 			return wrapResponse(
@@ -279,7 +258,6 @@ export const adminService = {
 			)
 		}
 
-		// Get existing participants in the room
 		const existingParticipants = await db
 			.select({ accountUuid: roomParticipants.accountUuid })
 			.from(roomParticipants)
@@ -289,7 +267,6 @@ export const adminService = {
 			existingParticipants.map(p => p.accountUuid)
 		)
 
-		// Process each student
 		let added = 0
 		let skipped = 0
 		const errors: { studentId: string; reason: string }[] = []
@@ -300,14 +277,12 @@ export const adminService = {
 		}[] = []
 
 		for (const studentId of studentIds) {
-			// Check if already in room
 			if (existingStudentIds.has(studentId)) {
 				skipped++
 				errors.push({ studentId, reason: 'Already in room' })
 				continue
 			}
 
-			// Check if student exists
 			const [student] = await db
 				.select()
 				.from(accounts)
@@ -319,7 +294,6 @@ export const adminService = {
 				continue
 			}
 
-			// Check if student is not an admin
 			if (student.role === 'ADMIN') {
 				skipped++
 				errors.push({ studentId, reason: 'Cannot add admin to room' })
@@ -333,7 +307,6 @@ export const adminService = {
 			})
 		}
 
-		// Batch insert all valid students
 		if (studentsToAdd.length > 0) {
 			await db.insert(roomParticipants).values(studentsToAdd)
 			added = studentsToAdd.length
@@ -353,21 +326,11 @@ export const adminService = {
 		)
 	},
 
-	// Get all participants in a room
 	getRoomParticipants: async ({ params, user, set }: any) => {
 		const { roomId } = params
 
 		const [room] = await db
-			.select({
-				uuid: rooms.uuid,
-				code: rooms.code,
-				name: rooms.name,
-				openTime: rooms.openTime,
-				closeTime: rooms.closeTime,
-				createdBy: rooms.createdBy,
-				createdAt: rooms.createdAt,
-				updatedAt: rooms.updatedAt
-			})
+			.select(selectRoomColumns)
 			.from(rooms)
 			.where(eq(rooms.uuid, roomId))
 
@@ -417,21 +380,11 @@ export const adminService = {
 		return wrapResponse(response, 200, 'Participants retrieved successfully')
 	},
 
-	// Search participants by name in a room
 	searchRoomParticipants: async ({ params, user, set }: any) => {
 		const { roomId, studentName } = params
 
 		const [room] = await db
-			.select({
-				uuid: rooms.uuid,
-				code: rooms.code,
-				name: rooms.name,
-				openTime: rooms.openTime,
-				closeTime: rooms.closeTime,
-				createdBy: rooms.createdBy,
-				createdAt: rooms.createdAt,
-				updatedAt: rooms.updatedAt
-			})
+			.select(selectRoomColumns)
 			.from(rooms)
 			.where(eq(rooms.uuid, roomId))
 
@@ -478,21 +431,11 @@ export const adminService = {
 		return wrapResponse(participantList, 200, 'Participants found')
 	},
 
-	// Remove student from room
 	removeStudentFromRoom: async ({ params, user, set }: any) => {
 		const { roomId, studentId } = params
 
 		const [room] = await db
-			.select({
-				uuid: rooms.uuid,
-				code: rooms.code,
-				name: rooms.name,
-				openTime: rooms.openTime,
-				closeTime: rooms.closeTime,
-				createdBy: rooms.createdBy,
-				createdAt: rooms.createdAt,
-				updatedAt: rooms.updatedAt
-			})
+			.select(selectRoomColumns)
 			.from(rooms)
 			.where(eq(rooms.uuid, roomId))
 
@@ -537,11 +480,9 @@ export const adminService = {
 		return wrapResponse(response, 200, 'Student removed from room successfully')
 	},
 
-	// Get testcases of a question
 	getTestcases: async ({ query, user, set }: any) => {
 		const { questionId } = query
 
-		// Check if question exists
 		const [question] = await db
 			.select()
 			.from(questions)
@@ -552,7 +493,6 @@ export const adminService = {
 			return wrapResponse(null, 404, '', 'Question not found')
 		}
 
-		// Check if user is owner of the room containing this question
 		const [room] = await db
 			.select()
 			.from(rooms)
@@ -568,7 +508,6 @@ export const adminService = {
 			)
 		}
 
-		// Get all testcases for this question
 		const testcaseList = await db
 			.select({
 				testcaseId: testCases.uuid,
@@ -594,12 +533,10 @@ export const adminService = {
 		return wrapResponse(response, 200, 'Testcases retrieved successfully')
 	},
 
-	// Create a testcase for a question
 	createTestcase: async ({ body, user, set }: any) => {
 		const { questionId, index, input_path, output_path, is_hidden } =
 			body as CreateTestcaseDto
 
-		// Check if question exists
 		const [question] = await db
 			.select()
 			.from(questions)
@@ -610,7 +547,6 @@ export const adminService = {
 			return wrapResponse(null, 404, '', 'Question not found')
 		}
 
-		// Check if user is owner of the room containing this question
 		const [room] = await db
 			.select()
 			.from(rooms)
@@ -626,7 +562,6 @@ export const adminService = {
 			)
 		}
 
-		// Check if testcase with same index already exists
 		const [existingTestcase] = await db
 			.select()
 			.from(testCases)
@@ -644,11 +579,9 @@ export const adminService = {
 			)
 		}
 
-		// Convert is_hidden to number if boolean
 		const isHiddenValue =
 			typeof is_hidden === 'boolean' ? (is_hidden ? 1 : 0) : is_hidden
 
-		// Create testcase
 		const [newTestcase] = await db
 			.insert(testCases)
 			.values({
@@ -668,7 +601,6 @@ export const adminService = {
 		return wrapResponse(response, 201, 'Testcase created successfully')
 	},
 
-	// Update a testcase
 	updateTestcase: async ({ body, user, set }: any) => {
 		const {
 			questionId,
@@ -679,7 +611,6 @@ export const adminService = {
 			is_hidden
 		} = body as UpdateTestcaseDto
 
-		// Check if question exists
 		const [question] = await db
 			.select()
 			.from(questions)
@@ -690,7 +621,6 @@ export const adminService = {
 			return wrapResponse(null, 404, '', 'Question not found')
 		}
 
-		// Check if user is owner of the room containing this question
 		const [room] = await db
 			.select()
 			.from(rooms)
@@ -706,7 +636,6 @@ export const adminService = {
 			)
 		}
 
-		// Check if testcase exists
 		const [testcase] = await db
 			.select()
 			.from(testCases)
@@ -717,7 +646,6 @@ export const adminService = {
 			return wrapResponse(null, 404, '', 'Testcase not found')
 		}
 
-		// Check if testcase belongs to the question
 		if (testcase.questionUuid !== questionId) {
 			set.status = 400
 			return wrapResponse(
@@ -728,7 +656,6 @@ export const adminService = {
 			)
 		}
 
-		// Check if another testcase with same index exists (excluding current)
 		const [existingTestcase] = await db
 			.select()
 			.from(testCases)
@@ -746,11 +673,9 @@ export const adminService = {
 			)
 		}
 
-		// Convert is_hidden to number if boolean
 		const isHiddenValue =
 			typeof is_hidden === 'boolean' ? (is_hidden ? 1 : 0) : is_hidden
 
-		// Update testcase
 		await db
 			.update(testCases)
 			.set({
@@ -768,11 +693,9 @@ export const adminService = {
 		return wrapResponse(response, 200, 'Testcase updated successfully')
 	},
 
-	// Delete a testcase
 	deleteTestcase: async ({ params, user, set }: any) => {
 		const { questionId, testcaseId } = params
 
-		// Check if question exists
 		const [question] = await db
 			.select()
 			.from(questions)
@@ -783,7 +706,6 @@ export const adminService = {
 			return wrapResponse(null, 404, '', 'Question not found')
 		}
 
-		// Check if user is owner of the room containing this question
 		const [room] = await db
 			.select()
 			.from(rooms)
@@ -799,7 +721,6 @@ export const adminService = {
 			)
 		}
 
-		// Check if testcase exists
 		const [testcase] = await db
 			.select()
 			.from(testCases)
@@ -810,7 +731,6 @@ export const adminService = {
 			return wrapResponse(null, 404, '', 'Testcase not found')
 		}
 
-		// Check if testcase belongs to the question
 		if (testcase.questionUuid !== questionId) {
 			set.status = 400
 			return wrapResponse(
@@ -821,7 +741,6 @@ export const adminService = {
 			)
 		}
 
-		// Delete testcase
 		await db.delete(testCases).where(eq(testCases.uuid, testcaseId))
 
 		return wrapResponse(
@@ -831,22 +750,11 @@ export const adminService = {
 		)
 	},
 
-	// Get all students' scores in a room
 	getRoomScores: async ({ params, user, set }: any) => {
 		const { roomId } = params
 
-		// Get room info
 		const [room] = await db
-			.select({
-				uuid: rooms.uuid,
-				code: rooms.code,
-				name: rooms.name,
-				openTime: rooms.openTime,
-				closeTime: rooms.closeTime,
-				createdBy: rooms.createdBy,
-				createdAt: rooms.createdAt,
-				updatedAt: rooms.updatedAt
-			})
+			.select(selectRoomColumns)
 			.from(rooms)
 			.where(eq(rooms.uuid, roomId))
 
@@ -855,7 +763,6 @@ export const adminService = {
 			return wrapResponse(null, 404, '', 'Room not found')
 		}
 
-		// Check if user is owner of the room
 		if (room.createdBy !== user.userId) {
 			set.status = 403
 			return wrapResponse(
@@ -866,7 +773,6 @@ export const adminService = {
 			)
 		}
 
-		// Get all participants in the room
 		const participants = await db
 			.select({
 				studentId: accounts.uuid,
@@ -877,7 +783,6 @@ export const adminService = {
 			.innerJoin(accounts, eq(roomParticipants.accountUuid, accounts.uuid))
 			.where(eq(roomParticipants.roomUuid, roomId))
 
-		// Get all questions in the room
 		const roomQuestions = await db
 			.select({
 				questionId: questions.uuid,
@@ -887,7 +792,6 @@ export const adminService = {
 			.from(questions)
 			.where(eq(questions.roomUuid, roomId))
 
-		// Get all submissions for this room
 		const allSubmissions = await db
 			.select({
 				uuid: submissions.uuid,
@@ -900,7 +804,6 @@ export const adminService = {
 			.innerJoin(questions, eq(submissions.questionUuid, questions.uuid))
 			.where(eq(questions.roomUuid, roomId))
 
-		// Calculate scores for each student
 		const studentsWithScores = participants.map(student => {
 			let totalScore = 0
 			const questionResults = roomQuestions.map(q => {
@@ -950,7 +853,6 @@ export const adminService = {
 			}
 		})
 
-		// Sort by totalScore descending
 		studentsWithScores.sort((a, b) => b.totalScore - a.totalScore)
 
 		const response: RoomScoresResponse = {

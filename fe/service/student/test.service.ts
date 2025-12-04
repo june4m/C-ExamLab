@@ -44,6 +44,43 @@ interface JudgeResult {
 	error?: string
 }
 
+// ApiResponse wrapper type matching backend
+interface ApiResponse<T> {
+	success: boolean
+	message?: string
+	error?: string
+	code: number
+	data?: T
+}
+
+// Backend JudgeFromFile request format
+interface JudgeFromFileRequest {
+	code: string
+	roomId: string
+	questionId: string
+	includePrivate?: boolean
+	timeLimit?: number
+	memoryLimit?: number
+	optimizationLevel?: 0 | 1 | 2 | 3 | 's'
+}
+
+// Backend JudgeResult response format
+interface JudgeResult {
+	passed: number
+	failed: number
+	total: number
+	results: Array<{
+		testCase: number
+		passed: boolean
+		input: string
+		expectedOutput: string
+		actualOutput?: string
+		error?: string
+		executionTime?: number
+	}>
+	error?: string
+}
+
 export function useTestAnswer() {
 	return useMutation({
 		mutationFn: async (

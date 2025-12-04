@@ -137,9 +137,7 @@ export default function AdminUsersPage() {
 				</div>
 				<div className="flex items-center gap-2">
 					<Users className="h-5 w-5 text-muted-foreground" />
-					<span className="text-sm font-medium">
-						{allUsers.length} users
-					</span>
+					<span className="text-sm font-medium">{allUsers.length} users</span>
 				</div>
 			</div>
 
@@ -163,9 +161,7 @@ export default function AdminUsersPage() {
 			{filteredUsers.length === 0 && (
 				<div className="rounded-md border border-dashed p-12 text-center">
 					<p className="text-muted-foreground">
-						{searchQuery
-							? 'No matching users found'
-							: 'No users yet'}
+						{searchQuery ? 'No matching users found' : 'No users yet'}
 					</p>
 				</div>
 			)}
@@ -182,9 +178,7 @@ export default function AdminUsersPage() {
 								<TableHead className="w-[120px]">Status</TableHead>
 								<TableHead className="w-[140px]">Last login</TableHead>
 								<TableHead className="w-[140px]">Created at</TableHead>
-								<TableHead className="w-[100px] text-center">
-									Action
-								</TableHead>
+								<TableHead className="w-[100px] text-center">Action</TableHead>
 							</TableRow>
 						</TableHeader>
 						<TableBody>

@@ -65,6 +65,7 @@ import {
 	useDeleteTestCase
 } from '@/service/admin/testcase.service'
 import { useGetAdminUsers } from '@/service/admin/user.service'
+import { useUpdateQuestion } from '@/service/admin/question.service'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Pencil, Trash2, Info, UserPlus, Check } from 'lucide-react'
@@ -864,6 +865,8 @@ export default function AdminRoomDetailPage() {
 	const { data: usersData, isLoading: usersLoading } = useGetAdminUsers()
 	const { data: scoresData, isLoading: scoresLoading } =
 		useGetRoomScores(roomId)
+	const { mutate: updateQuestion, isPending: isUpdatingQuestion } =
+		useUpdateQuestion()
 
 	const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
 	const [isAddStudentDialogOpen, setIsAddStudentDialogOpen] = useState(false)
@@ -1794,15 +1797,44 @@ export default function AdminRoomDetailPage() {
 						</Button>
 						<Button
 							onClick={() => {
-								// TODO: Call update question API
-								toast({
-									title: 'Notice',
-									description: 'This feature is under development'
-								})
-								setIsEditQuestionDialogOpen(false)
+								if (!editingQuestion) return
+								updateQuestion(
+									{
+										questionId: editingQuestion.uuid,
+										title: questionForm.title,
+										descriptionPath: questionForm.descriptionPath,
+										score: questionForm.score,
+										timeLimit: questionForm.timeLimit,
+										memoryLimit: questionForm.memoryLimit,
+										order: questionForm.order,
+										roomId: editingQuestion.roomUuid
+									},
+									{
+										onSuccess: () => {
+											toast({
+												title: 'Thành công',
+												description: 'Đã cập nhật câu hỏi'
+											})
+											setIsEditQuestionDialogOpen(false)
+											setEditingQuestion(null)
+										},
+										onError: (err: Error) => {
+											toast({
+												title: 'Lỗi',
+												description:
+													err.message || 'Không thể cập nhật câu hỏi',
+												variant: 'destructive'
+											})
+										}
+									}
+								)
 							}}
+							disabled={isUpdatingQuestion || !questionForm.title.trim()}
 							className="bg-[#40E0D0] hover:bg-[#40E0D0]/90 text-white"
 						>
+							{isUpdatingQuestion ? (
+								<Loader2 className="h-4 w-4 animate-spin mr-2" />
+							) : null}
 							Update
 						</Button>
 					</DialogFooter>
