@@ -71,11 +71,9 @@ import {
 	useUpdateTestCase,
 	useDeleteTestCase
 } from '@/service/admin/testcase.service'
-import { useAuthStore } from '@/store/auth.store'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || ''
+import { axiosGeneral } from '@/common/axios'
 
 interface RoomData {
 	uuid: string
@@ -92,21 +90,14 @@ interface RoomsResponse {
 }
 
 function useGetRooms() {
-	const token = useAuthStore(state => state.token)
-
 	return useQuery({
 		queryKey: ['admin-rooms'],
 		queryFn: async () => {
-			const res = await fetch(`${API_BASE_URL}/admin/rooms/`, {
-				headers: {
-					Authorization: `Bearer ${token}`
-				}
-			})
-			const json = (await res.json()) as RoomsResponse
-			if (!res.ok || !json.success) {
-				throw new Error(json.message || 'Failed to fetch rooms')
+			const res = await axiosGeneral.get<RoomsResponse>('/admin/rooms/getAll')
+			if (!res.data.success) {
+				throw new Error(res.data.message || 'Failed to fetch rooms')
 			}
-			return json.data
+			return res.data.data
 		}
 	})
 }

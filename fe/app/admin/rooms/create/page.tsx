@@ -22,9 +22,7 @@ import {
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useAuthStore } from '@/store/auth.store'
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || ''
+import { axiosGeneral } from '@/common/axios'
 
 interface CreateRoomRequest {
 	name: string
@@ -44,23 +42,16 @@ interface CreateRoomResponse {
 }
 
 function useCreateRoom() {
-	const token = useAuthStore(state => state.token)
-
 	return useMutation({
 		mutationFn: async (payload: CreateRoomRequest) => {
-			const res = await fetch(`${API_BASE_URL}/admin/rooms/create-room`, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					Authorization: `Bearer ${token}`
-				},
-				body: JSON.stringify(payload)
-			})
-			const json = (await res.json()) as CreateRoomResponse
-			if (!res.ok || !json.success) {
-				throw new Error(json.message || 'Failed to create room')
+			const res = await axiosGeneral.post<CreateRoomResponse>(
+				'/admin/rooms/create-room',
+				payload
+			)
+			if (!res.data.success) {
+				throw new Error(res.data.message || 'Failed to create room')
 			}
-			return json
+			return res.data
 		}
 	})
 }

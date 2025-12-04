@@ -23,7 +23,16 @@ export const jwtUtils = {
 				'email' in decoded &&
 				'isAdmin' in decoded
 			) {
-				return decoded as unknown as JwtPayload
+				// Ensure isAdmin is a boolean
+				const payload: JwtPayload = {
+					userId: decoded.userId as string,
+					email: decoded.email as string,
+					isAdmin:
+						decoded.isAdmin === true ||
+						decoded.isAdmin === 1 ||
+						decoded.isAdmin === 'true'
+				}
+				return payload
 			}
 			return null
 		} catch (error) {

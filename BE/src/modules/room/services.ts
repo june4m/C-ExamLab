@@ -125,17 +125,6 @@ export const roomService = {
 			return wrapResponse(null, 404, '', 'Room not found')
 		}
 
-		// Check ownership
-		if (room.createdBy !== user.userId) {
-			set.status = 403
-			return wrapResponse(
-				null,
-				403,
-				'',
-				'Forbidden - You are not the owner of this room'
-			)
-		}
-
 		return wrapResponse(formatRoom(room), 200, 'Room retrieved successfully')
 	},
 

@@ -198,16 +198,6 @@ export const adminService = {
 			return wrapResponse(null, 404, '', 'Room not found')
 		}
 
-		if (room.createdBy !== user.userId) {
-			set.status = 403
-			return wrapResponse(
-				null,
-				403,
-				'',
-				'Forbidden - You are not the owner of this room'
-			)
-		}
-
 		const participants = await db
 			.select({
 				studentId: accounts.uuid,
@@ -339,16 +329,6 @@ export const adminService = {
 			return wrapResponse(null, 404, '', 'Room not found')
 		}
 
-		if (room.createdBy !== user.userId) {
-			set.status = 403
-			return wrapResponse(
-				null,
-				403,
-				'',
-				'Forbidden - You are not the owner of this room'
-			)
-		}
-
 		const participants = await db
 			.select({
 				participantId: roomParticipants.uuid,
@@ -391,16 +371,6 @@ export const adminService = {
 		if (!room) {
 			set.status = 404
 			return wrapResponse(null, 404, '', 'Room not found')
-		}
-
-		if (room.createdBy !== user.userId) {
-			set.status = 403
-			return wrapResponse(
-				null,
-				403,
-				'',
-				'Forbidden - You are not the owner of this room'
-			)
 		}
 
 		const participants = await db
@@ -761,16 +731,6 @@ export const adminService = {
 		if (!room) {
 			set.status = 404
 			return wrapResponse(null, 404, '', 'Room not found')
-		}
-
-		if (room.createdBy !== user.userId) {
-			set.status = 403
-			return wrapResponse(
-				null,
-				403,
-				'',
-				'Forbidden - You are not the owner of this room'
-			)
 		}
 
 		const participants = await db
