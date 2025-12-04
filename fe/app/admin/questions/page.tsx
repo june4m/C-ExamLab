@@ -2,7 +2,15 @@
 
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
-import { Plus, Pencil, Trash2, Search, Loader2, FileCode } from 'lucide-react'
+import {
+	Plus,
+	Pencil,
+	Trash2,
+	Search,
+	Loader2,
+	FileCode,
+	Info
+} from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import {
@@ -59,7 +67,9 @@ import {
 } from '@/service/admin/question.service'
 import {
 	useGetTestCases,
-	useCreateTestCase
+	useCreateTestCase,
+	useUpdateTestCase,
+	useDeleteTestCase
 } from '@/service/admin/testcase.service'
 import { useAuthStore } from '@/store/auth.store'
 import { Switch } from '@/components/ui/switch'
@@ -122,29 +132,39 @@ export default function AdminQuestionsPage() {
 	const createQuestion = useCreateQuestion()
 	const updateQuestion = useUpdateQuestion()
 	const createTestCase = useCreateTestCase()
+	const updateTestCase = useUpdateTestCase()
+	const deleteTestCase = useDeleteTestCase()
 
 	const [searchQuery, setSearchQuery] = useState('')
+	const [editingTestCase, setEditingTestCase] = useState<{
+		testcaseId: string
+		index: number
+		input: string
+		output: string
+		is_hidden: boolean
+	} | null>(null)
 	const [filterRoom, setFilterRoom] = useState<string>('all')
 	const [isDialogOpen, setIsDialogOpen] = useState(false)
 	const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
 	const [isTestCaseDialogOpen, setIsTestCaseDialogOpen] = useState(false)
+	const [isInfoDialogOpen, setIsInfoDialogOpen] = useState(false)
 	const [editingQuestion, setEditingQuestion] = useState<Question | null>(null)
 	const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(
 		null
 	)
+	const [viewingQuestion, setViewingQuestion] = useState<Question | null>(null)
 
 	// Get test cases for selected question
 	const { data: testCasesData, isLoading: testCasesLoading } = useGetTestCases(
-		selectedQuestion?.roomId || '',
 		selectedQuestion?.uuid || ''
 	)
+	const testCases = testCasesData?.data?.testcaseList || []
+
 	const [testCaseFormData, setTestCaseFormData] = useState({
-		testCaseNumber: 1,
-		input: '',
-		expectedOutput: '',
-		isPublic: true,
-		points: 0,
-		description: ''
+		index: 1,
+		input_path: '',
+		output_path: '',
+		is_hidden: false
 	})
 	const [formData, setFormData] = useState<QuestionFormData>({
 		title: '',
@@ -267,9 +287,19 @@ export default function AdminQuestionsPage() {
 	const handleCreateTestCase = () => {
 		if (!selectedQuestion) return
 
+		// Check if index already exists
+		const existingIndexes = testCases.map(tc => tc.index)
+		if (existingIndexes.includes(testCaseFormData.index)) {
+			toast({
+				title: 'Lỗi',
+				description: `Số thứ tự ${testCaseFormData.index} đã tồn tại`,
+				variant: 'destructive'
+			})
+			return
+		}
+
 		createTestCase.mutate(
 			{
-				roomId: selectedQuestion.roomId,
 				questionId: selectedQuestion.uuid,
 				...testCaseFormData
 			},
@@ -289,14 +319,66 @@ export default function AdminQuestionsPage() {
 		)
 	}
 
+	const handleUpdateTestCase = () => {
+		if (!selectedQuestion || !editingTestCase) return
+
+		updateTestCase.mutate(
+			{
+				questionId: selectedQuestion.uuid,
+				testcaseId: editingTestCase.testcaseId,
+				index: editingTestCase.index,
+				input_path: editingTestCase.input,
+				output_path: editingTestCase.output,
+				is_hidden: editingTestCase.is_hidden
+			},
+			{
+				onSuccess: () => {
+					toast({ title: 'Thành công', description: 'Đã cập nhật test case' })
+					setEditingTestCase(null)
+				},
+				onError: () => {
+					toast({
+						title: 'Lỗi',
+						description: 'Không thể cập nhật test case',
+						variant: 'destructive'
+					})
+				}
+			}
+		)
+	}
+
+	const handleDeleteTestCase = (testcaseId: string) => {
+		if (!selectedQuestion) return
+
+		deleteTestCase.mutate(
+			{
+				questionId: selectedQuestion.uuid,
+				testcaseId
+			},
+			{
+				onSuccess: () => {
+					toast({ title: 'Thành công', description: 'Đã xóa test case' })
+				},
+				onError: () => {
+					toast({
+						title: 'Lỗi',
+						description: 'Không thể xóa test case',
+						variant: 'destructive'
+					})
+				}
+			}
+		)
+	}
+
 	const resetTestCaseForm = () => {
+		// Auto increment index
+		const maxIndex =
+			testCases.length > 0 ? Math.max(...testCases.map(tc => tc.index)) : 0
 		setTestCaseFormData({
-			testCaseNumber: (testCasesData?.data?.length || 0) + 1,
-			input: '',
-			expectedOutput: '',
-			isPublic: true,
-			points: 0,
-			description: ''
+			index: maxIndex + 1,
+			input_path: '',
+			output_path: '',
+			is_hidden: false
 		})
 	}
 
@@ -520,13 +602,19 @@ export default function AdminQuestionsPage() {
 					<Table>
 						<TableHeader>
 							<TableRow>
-								<TableHead className="w-20">Mã</TableHead>
-								<TableHead>Tiêu đề</TableHead>
-								<TableHead>Phòng thi</TableHead>
-								<TableHead className="w-20">Điểm</TableHead>
-								<TableHead className="w-[100px]">Time Limit</TableHead>
-								<TableHead className="w-[100px]">Test Cases</TableHead>
-								<TableHead className="w-[120px]">Hành động</TableHead>
+								<TableHead className="w-[80px]">Mã</TableHead>
+								<TableHead className="min-w-[150px]">Tiêu đề</TableHead>
+								<TableHead className="min-w-[120px]">Phòng thi</TableHead>
+								<TableHead className="w-[70px] text-center">Điểm</TableHead>
+								<TableHead className="w-[100px] text-center">
+									Time Limit
+								</TableHead>
+								<TableHead className="w-[100px] text-center">
+									Test Cases
+								</TableHead>
+								<TableHead className="w-[130px] text-center">
+									Hành động
+								</TableHead>
 							</TableRow>
 						</TableHeader>
 						<TableBody>
@@ -546,13 +634,13 @@ export default function AdminQuestionsPage() {
 											{roomMap[question.roomId] || question.roomId}
 										</Link>
 									</TableCell>
-									<TableCell>
+									<TableCell className="text-center">
 										<Badge variant="secondary">{question.score}</Badge>
 									</TableCell>
-									<TableCell className="text-muted-foreground">
+									<TableCell className="text-center text-muted-foreground">
 										{question.timeLimit}ms
 									</TableCell>
-									<TableCell>
+									<TableCell className="text-center">
 										<Button
 											variant="ghost"
 											size="sm"
@@ -564,12 +652,25 @@ export default function AdminQuestionsPage() {
 										</Button>
 									</TableCell>
 									<TableCell>
-										<div className="flex gap-1">
+										<div className="flex gap-1 justify-center">
+											<Button
+												variant="ghost"
+												size="icon"
+												className="h-8 w-8"
+												onClick={() => {
+													setViewingQuestion(question)
+													setIsInfoDialogOpen(true)
+												}}
+												title="Xem chi tiết"
+											>
+												<Info className="h-4 w-4" />
+											</Button>
 											<Button
 												variant="ghost"
 												size="icon"
 												className="h-8 w-8"
 												onClick={() => handleEdit(question)}
+												title="Chỉnh sửa"
 											>
 												<Pencil className="h-4 w-4" />
 											</Button>
@@ -579,6 +680,7 @@ export default function AdminQuestionsPage() {
 														variant="ghost"
 														size="icon"
 														className="h-8 w-8 text-destructive hover:text-destructive"
+														title="Xóa"
 													>
 														<Trash2 className="h-4 w-4" />
 													</Button>
@@ -628,6 +730,7 @@ export default function AdminQuestionsPage() {
 					setIsTestCaseDialogOpen(open)
 					if (!open) {
 						setSelectedQuestion(null)
+						setEditingTestCase(null)
 						resetTestCaseForm()
 					}
 				}}
@@ -640,52 +743,226 @@ export default function AdminQuestionsPage() {
 						</DialogDescription>
 					</DialogHeader>
 
+					{/* Question Info */}
+					{selectedQuestion && (
+						<div className="bg-muted/50 rounded-lg p-4 space-y-2">
+							<div className="flex items-center justify-between">
+								<h4 className="font-semibold">{selectedQuestion.title}</h4>
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={() => {
+										handleEdit(selectedQuestion)
+										setIsTestCaseDialogOpen(false)
+									}}
+								>
+									<Pencil className="h-4 w-4 mr-1" />
+									Sửa câu hỏi
+								</Button>
+							</div>
+							<div className="grid grid-cols-4 gap-4 text-sm">
+								<div>
+									<span className="text-muted-foreground">Mã:</span>
+									<p className="font-mono font-medium">
+										{selectedQuestion.code}
+									</p>
+								</div>
+								<div>
+									<span className="text-muted-foreground">Điểm:</span>
+									<p className="font-medium">{selectedQuestion.score}</p>
+								</div>
+								<div>
+									<span className="text-muted-foreground">Time Limit:</span>
+									<p className="font-medium">{selectedQuestion.timeLimit}ms</p>
+								</div>
+								<div>
+									<span className="text-muted-foreground">Memory:</span>
+									<p className="font-medium">
+										{selectedQuestion.memoryLimit}KB
+									</p>
+								</div>
+							</div>
+						</div>
+					)}
+
 					{/* Existing Test Cases */}
 					<div className="space-y-4">
-						<h4 className="font-medium">Danh sách Test Cases</h4>
+						<h4 className="font-medium">
+							Danh sách Test Cases ({testCases.length})
+						</h4>
 						{testCasesLoading ? (
 							<div className="flex justify-center py-4">
 								<Loader2 className="h-6 w-6 animate-spin" />
 							</div>
-						) : testCasesData?.data && testCasesData.data.length > 0 ? (
-							<div className="space-y-2">
-								{testCasesData.data.map((tc, idx) => (
+						) : testCases.length > 0 ? (
+							<div className="space-y-2 max-h-[300px] overflow-y-auto">
+								{testCases.map((tc, idx) => (
 									<div
-										key={tc.id || idx}
+										key={tc.testcaseId || idx}
 										className="border rounded-lg p-3 space-y-2"
 									>
 										<div className="flex items-center justify-between">
-											<span className="font-medium">
-												Test Case #{tc.testCaseNumber}
-											</span>
+											<span className="font-medium">Test Case #{tc.index}</span>
 											<div className="flex items-center gap-2">
-												<Badge variant={tc.isPublic ? 'default' : 'secondary'}>
-													{tc.isPublic ? 'Public' : 'Hidden'}
+												<Badge variant={tc.is_hidden ? 'secondary' : 'default'}>
+													{tc.is_hidden ? 'Hidden' : 'Public'}
 												</Badge>
-												<Badge variant="outline">{tc.points} điểm</Badge>
+												<Button
+													variant="ghost"
+													size="icon"
+													className="h-7 w-7"
+													onClick={() =>
+														setEditingTestCase({
+															testcaseId: tc.testcaseId,
+															index: tc.index,
+															input: tc.input || '',
+															output: tc.output || '',
+															is_hidden: tc.is_hidden === 1
+														})
+													}
+												>
+													<Pencil className="h-3.5 w-3.5" />
+												</Button>
+												<AlertDialog>
+													<AlertDialogTrigger asChild>
+														<Button
+															variant="ghost"
+															size="icon"
+															className="h-7 w-7 text-destructive hover:text-destructive"
+														>
+															<Trash2 className="h-3.5 w-3.5" />
+														</Button>
+													</AlertDialogTrigger>
+													<AlertDialogContent>
+														<AlertDialogHeader>
+															<AlertDialogTitle>
+																Xóa test case?
+															</AlertDialogTitle>
+															<AlertDialogDescription>
+																Hành động này không thể hoàn tác.
+															</AlertDialogDescription>
+														</AlertDialogHeader>
+														<AlertDialogFooter>
+															<AlertDialogCancel>Hủy</AlertDialogCancel>
+															<AlertDialogAction
+																onClick={() =>
+																	handleDeleteTestCase(tc.testcaseId)
+																}
+																className="bg-destructive hover:bg-destructive/90"
+															>
+																Xóa
+															</AlertDialogAction>
+														</AlertDialogFooter>
+													</AlertDialogContent>
+												</AlertDialog>
 											</div>
 										</div>
-										{tc.description && (
-											<p className="text-sm text-muted-foreground">
-												{tc.description}
-											</p>
+										{editingTestCase?.testcaseId === tc.testcaseId ? (
+											<div className="space-y-3 pt-2 border-t">
+												<div className="grid grid-cols-3 gap-3">
+													<div className="grid gap-1">
+														<Label className="text-xs">Số thứ tự</Label>
+														<Input
+															type="number"
+															value={editingTestCase.index}
+															onChange={e =>
+																setEditingTestCase({
+																	...editingTestCase,
+																	index: Number.parseInt(e.target.value) || 1
+																})
+															}
+														/>
+													</div>
+													<div className="grid gap-1">
+														<Label className="text-xs">Điểm</Label>
+														<Input
+															type="number"
+															disabled
+															value={selectedQuestion?.score || 0}
+														/>
+													</div>
+													<div className="grid gap-1">
+														<Label className="text-xs">Hidden</Label>
+														<div className="flex items-center h-10">
+															<Switch
+																checked={editingTestCase.is_hidden}
+																onCheckedChange={checked =>
+																	setEditingTestCase({
+																		...editingTestCase,
+																		is_hidden: checked
+																	})
+																}
+															/>
+														</div>
+													</div>
+												</div>
+												<div className="grid grid-cols-2 gap-3">
+													<div className="grid gap-1">
+														<Label className="text-xs">Input</Label>
+														<Textarea
+															value={editingTestCase.input}
+															onChange={e =>
+																setEditingTestCase({
+																	...editingTestCase,
+																	input: e.target.value
+																})
+															}
+															rows={3}
+														/>
+													</div>
+													<div className="grid gap-1">
+														<Label className="text-xs">Expected Output</Label>
+														<Textarea
+															value={editingTestCase.output}
+															onChange={e =>
+																setEditingTestCase({
+																	...editingTestCase,
+																	output: e.target.value
+																})
+															}
+															rows={3}
+														/>
+													</div>
+												</div>
+												<div className="flex gap-2 justify-end">
+													<Button
+														variant="outline"
+														size="sm"
+														onClick={() => setEditingTestCase(null)}
+													>
+														Hủy
+													</Button>
+													<Button
+														size="sm"
+														onClick={handleUpdateTestCase}
+														disabled={updateTestCase.isPending}
+														className="bg-[#40E0D0] hover:bg-[#40E0D0]/90 text-white"
+													>
+														{updateTestCase.isPending && (
+															<Loader2 className="h-4 w-4 animate-spin mr-1" />
+														)}
+														Lưu
+													</Button>
+												</div>
+											</div>
+										) : (
+											<div className="grid grid-cols-2 gap-2 text-sm">
+												<div>
+													<span className="text-muted-foreground">Input:</span>
+													<pre className="bg-muted p-2 rounded mt-1 overflow-x-auto max-h-20">
+														{tc.input || '(empty)'}
+													</pre>
+												</div>
+												<div>
+													<span className="text-muted-foreground">
+														Expected Output:
+													</span>
+													<pre className="bg-muted p-2 rounded mt-1 overflow-x-auto max-h-20">
+														{tc.output || '(empty)'}
+													</pre>
+												</div>
+											</div>
 										)}
-										<div className="grid grid-cols-2 gap-2 text-sm">
-											<div>
-												<span className="text-muted-foreground">Input:</span>
-												<pre className="bg-muted p-2 rounded mt-1 overflow-x-auto">
-													{tc.input || '(empty)'}
-												</pre>
-											</div>
-											<div>
-												<span className="text-muted-foreground">
-													Expected Output:
-												</span>
-												<pre className="bg-muted p-2 rounded mt-1 overflow-x-auto">
-													{tc.expectedOutput || '(empty)'}
-												</pre>
-											</div>
-										</div>
 									</div>
 								))}
 							</div>
@@ -700,70 +977,54 @@ export default function AdminQuestionsPage() {
 					<div className="border-t pt-4 mt-4">
 						<h4 className="font-medium mb-4">Thêm Test Case mới</h4>
 						<div className="grid gap-4">
-							<div className="grid grid-cols-3 gap-4">
+							<div className="grid grid-cols-2 gap-4">
 								<div className="grid gap-2">
 									<Label>Số thứ tự</Label>
 									<Input
 										type="number"
-										value={testCaseFormData.testCaseNumber}
+										value={testCaseFormData.index}
 										onChange={e =>
 											setTestCaseFormData({
 												...testCaseFormData,
-												testCaseNumber: Number.parseInt(e.target.value) || 1
+												index: Number.parseInt(e.target.value) || 1
 											})
 										}
 									/>
+									{testCases.some(
+										tc => tc.index === testCaseFormData.index
+									) && (
+										<p className="text-xs text-destructive">
+											Số thứ tự này đã tồn tại
+										</p>
+									)}
 								</div>
 								<div className="grid gap-2">
-									<Label>Điểm</Label>
-									<Input
-										type="number"
-										value={testCaseFormData.points}
-										onChange={e =>
-											setTestCaseFormData({
-												...testCaseFormData,
-												points: Number.parseInt(e.target.value) || 0
-											})
-										}
-									/>
-								</div>
-								<div className="grid gap-2">
-									<Label>Public</Label>
+									<Label>Hidden</Label>
 									<div className="flex items-center h-10">
 										<Switch
-											checked={testCaseFormData.isPublic}
+											checked={testCaseFormData.is_hidden}
 											onCheckedChange={checked =>
 												setTestCaseFormData({
 													...testCaseFormData,
-													isPublic: checked
+													is_hidden: checked
 												})
 											}
 										/>
+										<span className="ml-2 text-sm text-muted-foreground">
+											{testCaseFormData.is_hidden ? 'Ẩn' : 'Hiện'}
+										</span>
 									</div>
 								</div>
-							</div>
-							<div className="grid gap-2">
-								<Label>Mô tả</Label>
-								<Input
-									value={testCaseFormData.description}
-									onChange={e =>
-										setTestCaseFormData({
-											...testCaseFormData,
-											description: e.target.value
-										})
-									}
-									placeholder="Mô tả test case (tùy chọn)"
-								/>
 							</div>
 							<div className="grid grid-cols-2 gap-4">
 								<div className="grid gap-2">
 									<Label>Input</Label>
 									<Textarea
-										value={testCaseFormData.input}
+										value={testCaseFormData.input_path}
 										onChange={e =>
 											setTestCaseFormData({
 												...testCaseFormData,
-												input: e.target.value
+												input_path: e.target.value
 											})
 										}
 										placeholder="Nhập input..."
@@ -773,11 +1034,11 @@ export default function AdminQuestionsPage() {
 								<div className="grid gap-2">
 									<Label>Expected Output</Label>
 									<Textarea
-										value={testCaseFormData.expectedOutput}
+										value={testCaseFormData.output_path}
 										onChange={e =>
 											setTestCaseFormData({
 												...testCaseFormData,
-												expectedOutput: e.target.value
+												output_path: e.target.value
 											})
 										}
 										placeholder="Nhập expected output..."
@@ -787,7 +1048,10 @@ export default function AdminQuestionsPage() {
 							</div>
 							<Button
 								onClick={handleCreateTestCase}
-								disabled={createTestCase.isPending}
+								disabled={
+									createTestCase.isPending ||
+									testCases.some(tc => tc.index === testCaseFormData.index)
+								}
 								className="bg-[#40E0D0] hover:bg-[#40E0D0]/90 text-white"
 							>
 								{createTestCase.isPending ? (
@@ -932,6 +1196,107 @@ export default function AdminQuestionsPage() {
 								<Loader2 className="h-4 w-4 animate-spin mr-2" />
 							) : null}
 							Cập nhật
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Question Info Dialog */}
+			<Dialog
+				open={isInfoDialogOpen}
+				onOpenChange={open => {
+					setIsInfoDialogOpen(open)
+					if (!open) setViewingQuestion(null)
+				}}
+			>
+				<DialogContent className="max-w-lg">
+					<DialogHeader>
+						<DialogTitle>Chi tiết câu hỏi</DialogTitle>
+						<DialogDescription>Thông tin đầy đủ của câu hỏi</DialogDescription>
+					</DialogHeader>
+					{viewingQuestion && (
+						<div className="space-y-4">
+							<div className="grid grid-cols-2 gap-4">
+								{/* <div>
+									<Label className="text-xs text-muted-foreground">
+										Mã câu hỏi
+									</Label>
+									<p className="font-mono font-medium">
+										{viewingQuestion.code}
+									</p>
+								</div> */}
+								<div>
+									<Label className="text-xs text-muted-foreground">
+										Thứ tự
+									</Label>
+									<p className="font-medium">{viewingQuestion.order}</p>
+								</div>
+							</div>
+							<div>
+								<Label className="text-xs text-muted-foreground">Tiêu đề</Label>
+								<p className="font-semibold">{viewingQuestion.title}</p>
+							</div>
+							<div>
+								<Label className="text-xs text-muted-foreground">
+									Phòng thi
+								</Label>
+								<Link
+									href={`/admin/rooms/${viewingQuestion.roomId}`}
+									className="text-[#40E0D0] hover:underline block"
+								>
+									{roomMap[viewingQuestion.roomId] || viewingQuestion.roomId}
+								</Link>
+							</div>
+							<div className="grid grid-cols-3 gap-4">
+								<div>
+									<Label className="text-xs text-muted-foreground">Điểm</Label>
+									<p className="font-medium text-primary">
+										{viewingQuestion.score}
+									</p>
+								</div>
+								<div>
+									<Label className="text-xs text-muted-foreground">
+										Time Limit
+									</Label>
+									<p className="font-medium">{viewingQuestion.timeLimit}ms</p>
+								</div>
+								<div>
+									<Label className="text-xs text-muted-foreground">
+										Memory Limit
+									</Label>
+									<p className="font-medium">{viewingQuestion.memoryLimit}KB</p>
+								</div>
+							</div>
+							{viewingQuestion.descriptionPath && (
+								<div>
+									<Label className="text-xs text-muted-foreground">
+										Đường dẫn mô tả
+									</Label>
+									<p className="font-mono text-sm break-all">
+										{viewingQuestion.descriptionPath}
+									</p>
+								</div>
+							)}
+						</div>
+					)}
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={() => setIsInfoDialogOpen(false)}
+						>
+							Đóng
+						</Button>
+						<Button
+							onClick={() => {
+								if (viewingQuestion) {
+									handleEdit(viewingQuestion)
+									setIsInfoDialogOpen(false)
+								}
+							}}
+							className="bg-[#40E0D0] hover:bg-[#40E0D0]/90 text-white"
+						>
+							<Pencil className="h-4 w-4 mr-1" />
+							Chỉnh sửa
 						</Button>
 					</DialogFooter>
 				</DialogContent>

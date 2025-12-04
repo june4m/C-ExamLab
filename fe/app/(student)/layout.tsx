@@ -9,7 +9,7 @@ export default function StudentLayout({
 	children: React.ReactNode
 }) {
 	return (
-		<ProtectedRoute>
+		<ProtectedRoute requiredRole="USER">
 			<div className="flex min-h-screen">
 				<StudentSidebar />
 				<main className="flex-1 ml-64">

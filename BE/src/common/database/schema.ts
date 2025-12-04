@@ -106,8 +106,8 @@ export const testCases = mysqlTable(
 			.notNull()
 			.references(() => questions.uuid),
 		index: int('index').notNull(),
-		inputPath: varchar('input_path', { length: 150 }).notNull(),
-		outputPath: varchar('output_path', { length: 150 }).notNull(),
+		inputPath: text('input_path').notNull(),
+		outputPath: text('output_path').notNull(),
 		isHidden: tinyint('is_hidden').default(1)
 	},
 	table => ({
