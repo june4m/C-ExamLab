@@ -48,7 +48,7 @@ export const rooms = mysqlTable('rooms', {
 	updatedAt: datetime('updated_at', { fsp: 6 }).default(
 		sql`CURRENT_TIMESTAMP(6)`
 	),
-	reminderSentAt: datetime('reminder_sent_at', { fsp: 6 })
+	reminderSentAt: datetime('reminder_sent_at', { fsp: 6 }).default(sql`NULL`)
 })
 
 // 3. room_participants table

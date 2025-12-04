@@ -50,6 +50,7 @@ function useCreateRoom() {
 
 	return useMutation({
 		mutationFn: async (payload: CreateRoomRequest) => {
+			console.log('Creating room with payload:', payload)
 			const res = await fetch(`${API_BASE_URL}/admin/rooms/create-room`, {
 				method: 'POST',
 				headers: {
@@ -59,8 +60,12 @@ function useCreateRoom() {
 				body: JSON.stringify(payload)
 			})
 			const json = (await res.json()) as CreateRoomResponse
+			console.log('Create room response:', json)
 			if (!res.ok || !json.success) {
-				throw new Error(json.message || 'Failed to create room')
+				const errorMsg =
+					json.message || (json as any).error || 'Failed to create room'
+				console.error('Create room error:', errorMsg)
+				throw new Error(errorMsg)
 			}
 			return json
 		}
@@ -153,8 +158,14 @@ export default function CreateRoomPage() {
 				queryClient.invalidateQueries({ queryKey: ['admin-rooms'] })
 				router.push('/admin/rooms')
 			},
-			onError: (err: Error) => {
-				setError(err.message || 'Failed to create room')
+			onError: (err: any) => {
+				console.error('Create room error details:', err)
+				const errorMsg =
+					err?.response?.data?.error ||
+					err?.response?.data?.message ||
+					err?.message ||
+					'Failed to create room'
+				setError(errorMsg)
 			}
 		})
 	}

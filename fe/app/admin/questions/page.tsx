@@ -285,7 +285,15 @@ export default function AdminQuestionsPage() {
 	}
 
 	const handleCreateTestCase = () => {
-		if (!selectedQuestion) return
+		if (!selectedQuestion) {
+			console.error('selectedQuestion is null')
+			toast({
+				title: 'Lỗi',
+				description: 'Không tìm thấy câu hỏi được chọn',
+				variant: 'destructive'
+			})
+			return
+		}
 
 		// Check if index already exists
 		const existingIndexes = testCases.map(tc => tc.index)
@@ -298,25 +306,30 @@ export default function AdminQuestionsPage() {
 			return
 		}
 
-		createTestCase.mutate(
-			{
-				questionId: selectedQuestion.uuid,
-				...testCaseFormData
+		const payload = {
+			questionId: selectedQuestion.uuid,
+			...testCaseFormData
+		}
+		console.log('Creating testcase with payload:', payload)
+
+		createTestCase.mutate(payload, {
+			onSuccess: () => {
+				toast({ title: 'Thành công', description: 'Đã tạo test case mới' })
+				resetTestCaseForm()
 			},
-			{
-				onSuccess: () => {
-					toast({ title: 'Thành công', description: 'Đã tạo test case mới' })
-					resetTestCaseForm()
-				},
-				onError: () => {
-					toast({
-						title: 'Lỗi',
-						description: 'Không thể tạo test case',
-						variant: 'destructive'
-					})
-				}
+			onError: (error: any) => {
+				console.error('Create testcase error:', error)
+				const errorMessage =
+					error?.response?.data?.message ||
+					error?.message ||
+					'Không thể tạo test case'
+				toast({
+					title: 'Lỗi',
+					description: errorMessage,
+					variant: 'destructive'
+				})
 			}
-		)
+		})
 	}
 
 	const handleUpdateTestCase = () => {
@@ -612,9 +625,7 @@ export default function AdminQuestionsPage() {
 								<TableHead className="w-[100px] text-center">
 									Test cases
 								</TableHead>
-								<TableHead className="w-[130px] text-center">
-									Actions
-								</TableHead>
+								<TableHead className="w-[130px] text-center">Actions</TableHead>
 							</TableRow>
 						</TableHeader>
 						<TableBody>

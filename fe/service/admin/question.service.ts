@@ -111,8 +111,11 @@ export function useUpdateQuestion() {
 			)
 			return data
 		},
-		onSuccess: () => {
+		onSuccess: (_, variables) => {
 			queryClient.invalidateQueries({ queryKey: ['admin', 'questions'] })
+			queryClient.invalidateQueries({
+				queryKey: ['admin-room-questions', variables.roomId]
+			})
 		}
 	})
 }

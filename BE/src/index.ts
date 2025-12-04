@@ -11,6 +11,10 @@ import { room } from './modules/room'
 import { admin } from './modules/admin'
 import { question } from './modules/question'
 import { user } from './modules/user'
+import { startRoomReminderJob } from './jobs/roomReminder.job'
+
+// Start cron jobs
+startRoomReminderJob()
 
 const app = new Elysia()
 	.use(
