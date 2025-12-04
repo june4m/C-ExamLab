@@ -83,6 +83,17 @@ export default function QuestionPage({
 			})
 			setTestResult(result)
 
+			// Check compilation status first
+			if (result.compileStatus !== 'success') {
+				toast({
+					title: 'Compilation failed',
+					description:
+						'Your code could not be compiled. Please check for syntax errors.',
+					variant: 'destructive'
+				})
+				return
+			}
+
 			if (result.overallPassed) {
 				toast({
 					title: 'All tests passed!',
@@ -119,17 +130,16 @@ export default function QuestionPage({
 			})
 			setSubmissionResult(result)
 
-			const statusLower = result.status.toLowerCase()
-			const isSuccess =
-				statusLower.includes('accepted') ||
-				statusLower.includes('success') ||
-				statusLower.includes('passed')
+			// More explicit status checking
+			const statusLower = result.status.toLowerCase().trim()
+			const successStatuses = ['accepted', 'success', 'passed', 'correct']
+			const isSuccess = successStatuses.some(status => statusLower === status)
 
 			toast({
 				title: isSuccess ? 'Submission successful!' : 'Submission completed',
 				description: isSuccess
-					? `Your answer scored ${result.score} points!`
-					: `Status: ${result.status}. Score: ${result.score}`,
+					? `Your answer scored ${result.score ?? 0} points!`
+					: `Status: ${result.status}. Score: ${result.score ?? 0}`,
 				variant: isSuccess ? 'default' : 'destructive'
 			})
 		} catch (error) {
@@ -164,11 +174,12 @@ ${index < result.results.length - 1 ? '\n---\n' : ''}`
 	}
 
 	const executeOutput = formatExecuteOutput(executeResult)
-	const executeError = executeMutation.error
-		? executeMutation.error instanceof Error
+	const executeError =
+		executeMutation.error instanceof Error
 			? executeMutation.error.message
-			: 'An error occurred while executing your code.'
-		: ''
+			: executeMutation.error
+			? String(executeMutation.error)
+			: ''
 
 	if (isLoading) {
 		return (
@@ -222,7 +233,13 @@ ${index < result.results.length - 1 ? '\n---\n' : ''}`
 				<TestResults
 					result={testResult}
 					isLoading={testMutation.isPending}
-					error={testMutation.error as Error | null}
+					error={
+						testMutation.error instanceof Error
+							? testMutation.error
+							: testMutation.error
+							? new Error(String(testMutation.error))
+							: null
+					}
 				/>
 			)}
 			{(submissionResult ||
@@ -231,7 +248,13 @@ ${index < result.results.length - 1 ? '\n---\n' : ''}`
 				<SubmissionResults
 					result={submissionResult}
 					isLoading={submitMutation.isPending}
-					error={submitMutation.error as Error | null}
+					error={
+						submitMutation.error instanceof Error
+							? submitMutation.error
+							: submitMutation.error
+							? new Error(String(submitMutation.error))
+							: null
+					}
 				/>
 			)}
 		</div>

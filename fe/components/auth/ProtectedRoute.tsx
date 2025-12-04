@@ -75,9 +75,25 @@ export function ProtectedRoute({
 		return <>{fallback}</>
 	}
 
-	// Check role if required
-	if (requiredRole && user?.role !== requiredRole) {
-		return <>{fallback}</>
+	// Strictly check role - prevent cross-role access
+	// If requiredRole is set, user must have exactly that role
+	if (requiredRole) {
+		// If user role doesn't match required role, don't render children
+		if (user?.role !== requiredRole) {
+			// Return fallback while redirect is happening
+			return (
+				<>
+					{fallback || (
+						<div className="flex min-h-screen items-center justify-center">
+							<div className="flex flex-col items-center gap-3">
+								<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+								<p className="text-sm text-muted-foreground">Redirecting...</p>
+							</div>
+						</div>
+					)}
+				</>
+			)
+		}
 	}
 
 	return <>{children}</>
