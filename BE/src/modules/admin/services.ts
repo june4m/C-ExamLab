@@ -9,6 +9,7 @@ import {
 	submissions
 } from '../../common/database/schema'
 import { wrapResponse } from '../../common/dtos/response'
+import { testCaseService } from '../testcase/service'
 import type {
 	Student,
 	LeaderboardResponse,
@@ -566,6 +567,7 @@ export const adminService = {
 		const isHiddenValue =
 			typeof is_hidden === 'boolean' ? (is_hidden ? 1 : 0) : is_hidden
 
+		// Save to database
 		const [newTestcase] = await db
 			.insert(testCases)
 			.values({
@@ -576,6 +578,27 @@ export const adminService = {
 				isHidden: isHiddenValue
 			})
 			.$returningId()
+
+		// Also create files in the file system for the compiler service
+		try {
+			await testCaseService.createTestCase({
+				roomId: question.roomUuid,
+				questionId: questionId,
+				testCaseNumber: index,
+				input: input_path, // input_path contains the actual content
+				expectedOutput: output_path, // output_path contains the actual content
+				isPublic: isHiddenValue === 0, // is_hidden: 0 = public, 1 = hidden/private
+				points: undefined,
+				description: undefined
+			})
+		} catch (error) {
+			// If file creation fails, log error but don't fail the request
+			// The database record is already created
+			console.error(
+				`[AdminService] Failed to create test case files for question ${questionId}, index ${index}:`,
+				error
+			)
+		}
 
 		const response: CreateTestcaseResponse = {
 			message: 'success',
@@ -666,6 +689,9 @@ export const adminService = {
 		const isHiddenValue =
 			typeof is_hidden === 'boolean' ? (is_hidden ? 1 : 0) : is_hidden
 
+		const oldIndex = testcase.index
+
+		// Update database
 		await db
 			.update(testCases)
 			.set({
@@ -675,6 +701,65 @@ export const adminService = {
 				isHidden: isHiddenValue
 			})
 			.where(eq(testCases.uuid, testcaseId))
+
+		// Also update files in the file system
+		try {
+			// If index changed, we need to delete old file and create new one
+			if (oldIndex !== index) {
+				// Delete old test case file (if it exists)
+				try {
+					await testCaseService.deleteTestCase({
+						roomId: question.roomUuid,
+						questionId: questionId,
+						testCaseNumber: oldIndex
+					})
+				} catch (deleteError) {
+					// Ignore if old file doesn't exist
+					console.warn(
+						`[AdminService] Old test case file not found for deletion (question ${questionId}, index ${oldIndex})`
+					)
+				}
+			}
+
+			// Try to update, or create if it doesn't exist
+			try {
+				await testCaseService.updateTestCase({
+					roomId: question.roomUuid,
+					questionId: questionId,
+					testCaseNumber: index,
+					input: input_path,
+					expectedOutput: output_path,
+					isPublic: isHiddenValue === 0, // is_hidden: 0 = public, 1 = hidden/private
+					points: undefined,
+					description: undefined
+				})
+			} catch (updateError) {
+				// If update fails because file doesn't exist, create it instead
+				if (
+					updateError instanceof Error &&
+					updateError.message.includes('does not exist')
+				) {
+					await testCaseService.createTestCase({
+						roomId: question.roomUuid,
+						questionId: questionId,
+						testCaseNumber: index,
+						input: input_path,
+						expectedOutput: output_path,
+						isPublic: isHiddenValue === 0,
+						points: undefined,
+						description: undefined
+					})
+				} else {
+					throw updateError
+				}
+			}
+		} catch (error) {
+			// If file update fails, log error but don't fail the request
+			console.error(
+				`[AdminService] Failed to update test case files for question ${questionId}, index ${index}:`,
+				error
+			)
+		}
 
 		const response: UpdateTestcaseResponse = {
 			message: 'success'
@@ -737,7 +822,24 @@ export const adminService = {
 			)
 		}
 
+		// Delete from database
 		await db.delete(testCases).where(eq(testCases.uuid, testcaseId))
+
+		// Also delete files from the file system
+		try {
+			await testCaseService.deleteTestCase({
+				roomId: question.roomUuid,
+				questionId: questionId,
+				testCaseNumber: testcase.index
+			})
+		} catch (error) {
+			// If file deletion fails, log error but don't fail the request
+			// The database record is already deleted
+			console.error(
+				`[AdminService] Failed to delete test case files for question ${questionId}, index ${testcase.index}:`,
+				error
+			)
+		}
 
 		return wrapResponse(
 			{ message: 'success' },
