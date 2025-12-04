@@ -19,6 +19,7 @@ interface SubmissionResultsProps {
 	result: SubmitAnswerResponse | null
 	isLoading?: boolean
 	error?: Error | null
+	noCard?: boolean
 }
 
 function getStatusBadgeVariant(
@@ -68,49 +69,56 @@ function formatMemory(kb: number | null): string {
 export function SubmissionResults({
 	result,
 	isLoading = false,
-	error = null
+	error = null,
+	noCard = false
 }: SubmissionResultsProps) {
 	if (isLoading) {
-		return (
+		const loadingContent = (
+			<CardContent>
+				<div className="flex items-center justify-center p-8">
+					<div className="flex flex-col items-center gap-3">
+						<Loader2 className="h-8 w-8 animate-spin text-primary" />
+						<p className="text-sm text-muted-foreground">
+							Submitting and evaluating your answer...
+						</p>
+					</div>
+				</div>
+			</CardContent>
+		)
+		return noCard ? loadingContent : (
 			<Card>
 				<CardHeader>
 					<CardTitle className="text-lg">Submission Results</CardTitle>
 				</CardHeader>
-				<CardContent>
-					<div className="flex items-center justify-center p-8">
-						<div className="flex flex-col items-center gap-3">
-							<Loader2 className="h-8 w-8 animate-spin text-primary" />
-							<p className="text-sm text-muted-foreground">
-								Submitting and evaluating your answer...
-							</p>
-						</div>
-					</div>
-				</CardContent>
+				{loadingContent}
 			</Card>
 		)
 	}
 
 	if (error) {
-		return (
+		const errorContent = (
+			<CardContent>
+				<div className="flex items-center gap-3 p-4 rounded-md bg-destructive/10 border border-destructive/20">
+					<AlertCircle className="h-5 w-5 text-destructive" />
+					<div>
+						<p className="text-sm font-medium text-destructive">
+							Error submitting answer
+						</p>
+						<p className="text-xs text-muted-foreground mt-1">
+							{error instanceof Error
+								? error.message
+								: 'An unknown error occurred'}
+						</p>
+					</div>
+				</div>
+			</CardContent>
+		)
+		return noCard ? errorContent : (
 			<Card>
 				<CardHeader>
 					<CardTitle className="text-lg">Submission Results</CardTitle>
 				</CardHeader>
-				<CardContent>
-					<div className="flex items-center gap-3 p-4 rounded-md bg-destructive/10 border border-destructive/20">
-						<AlertCircle className="h-5 w-5 text-destructive" />
-						<div>
-							<p className="text-sm font-medium text-destructive">
-								Error submitting answer
-							</p>
-							<p className="text-xs text-muted-foreground mt-1">
-								{error instanceof Error
-									? error.message
-									: 'An unknown error occurred'}
-							</p>
-						</div>
-					</div>
-				</CardContent>
+				{errorContent}
 			</Card>
 		)
 	}
@@ -128,27 +136,8 @@ export function SubmissionResults({
 	).length
 	const totalCount = result.details.length
 
-	return (
-		<Card>
-			<CardHeader>
-				<div className="flex items-center justify-between">
-					<CardTitle className="text-lg">Submission Results</CardTitle>
-					<Badge variant={statusVariant} className="text-sm">
-						{statusVariant === 'success' ? (
-							<>
-								<CheckCircle2 className="mr-1 h-3 w-3" />
-								{result.status}
-							</>
-						) : (
-							<>
-								<XCircle className="mr-1 h-3 w-3" />
-								{result.status}
-							</>
-						)}
-					</Badge>
-				</div>
-			</CardHeader>
-			<CardContent className="space-y-6">
+	const mainContent = (
+		<CardContent className="space-y-6">
 				{/* Summary Stats */}
 				<div className="grid grid-cols-1 md:grid-cols-4 gap-4">
 					<div className="p-4 rounded-md bg-muted/50 border">
@@ -275,6 +264,33 @@ export function SubmissionResults({
 					</div>
 				</div>
 			</CardContent>
+		)
+
+	if (noCard) {
+		return mainContent
+	}
+
+	return (
+		<Card>
+			<CardHeader>
+				<div className="flex items-center justify-between">
+					<CardTitle className="text-lg">Submission Results</CardTitle>
+					<Badge variant={statusVariant} className="text-sm">
+						{statusVariant === 'success' ? (
+							<>
+								<CheckCircle2 className="mr-1 h-3 w-3" />
+								{result.status}
+							</>
+						) : (
+							<>
+								<XCircle className="mr-1 h-3 w-3" />
+								{result.status}
+							</>
+						)}
+					</Badge>
+				</div>
+			</CardHeader>
+			{mainContent}
 		</Card>
 	)
 }

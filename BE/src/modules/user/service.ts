@@ -62,14 +62,11 @@ export const userService = {
 
 		return wrapResponse(
 			{
-				studentId: userProfile.uuid,
+				uuid: userProfile.uuid,
 				email: userProfile.email,
 				fullName: userProfile.fullName,
-				role: userProfile.role,
-				isBanned: userProfile.isBanned === 1,
 				lastLogin: userProfile.lastLogin?.toISOString() ?? null,
-				createdAt: userProfile.createdAt?.toISOString() ?? null,
-				updatedAt: userProfile.updatedAt?.toISOString() ?? null
+				createdAt: userProfile.createdAt?.toISOString() ?? null
 			},
 			200,
 			'Profile retrieved successfully'
