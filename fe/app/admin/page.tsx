@@ -320,7 +320,7 @@ export default function AdminDashboardPage() {
 									{dashboardStats.totalRooms}
 								</div>
 								<p className="text-xs text-muted-foreground">
-									{dashboardStats.activeExams} phòng đang hoạt động
+									{dashboardStats.activeExams} Room is running
 								</p>
 							</>
 						)}
@@ -373,7 +373,7 @@ export default function AdminDashboardPage() {
 									{dashboardStats.totalStudents}
 								</div>
 								<p className="text-xs text-muted-foreground">
-									Đã đăng ký tham gia thi
+									Number of candidate registered
 								</p>
 							</>
 						)}
@@ -397,7 +397,7 @@ export default function AdminDashboardPage() {
 									{dashboardStats.activeExams}
 								</div>
 								<p className="text-xs text-muted-foreground">
-									Đang có thí sinh làm bài
+									Candidates are taking the test
 								</p>
 							</>
 						)}
