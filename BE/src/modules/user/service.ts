@@ -1,8 +1,40 @@
 import { eq, and } from 'drizzle-orm'
 import { db } from '../../configurations/database'
-import { accounts, rooms, roomParticipants, questions, submissions, submissionDetails } from '../../common/database/schema'
+import {
+	accounts,
+	rooms,
+	roomParticipants,
+	questions,
+	submissions,
+	submissionDetails
+} from '../../common/database/schema'
 import { wrapResponse } from '../../common/dtos/response'
-import type { JoinRoomDto, JoinRoomResponse, UpdateStudentProfileDto, UpdateStudentProfileResponse, StudentRoomsResponse, RoomExamsResponse, SubmitQuestionDto, SubmitQuestionResponse, ViewMyScoreDto, ViewMyScoreResponse } from './model'
+import { NODE_ENV } from '../../configurations/env'
+
+// Helper to select only existing columns from rooms table
+// (reminderSentAt column doesn't exist in database yet)
+const selectRoomColumns = {
+	uuid: rooms.uuid,
+	code: rooms.code,
+	name: rooms.name,
+	openTime: rooms.openTime,
+	closeTime: rooms.closeTime,
+	createdBy: rooms.createdBy,
+	createdAt: rooms.createdAt,
+	updatedAt: rooms.updatedAt
+}
+import type {
+	JoinRoomDto,
+	JoinRoomResponse,
+	UpdateStudentProfileDto,
+	UpdateStudentProfileResponse,
+	StudentRoomsResponse,
+	RoomExamsResponse,
+	SubmitQuestionDto,
+	SubmitQuestionResponse,
+	ViewMyScoreDto,
+	ViewMyScoreResponse
+} from './model'
 
 export const userService = {
 	getProfile: async ({ user, set }: any) => {
@@ -43,37 +75,44 @@ export const userService = {
 		const { roomCode } = body as JoinRoomDto
 
 		// Find room by code
-		const [room] = await db
-			.select()
-			.from(rooms)
-			.where(eq(rooms.code, roomCode.toUpperCase()))
+		let room
+		try {
+			;[room] = await db
+				.select(selectRoomColumns)
+				.from(rooms)
+				.where(eq(rooms.code, roomCode.toUpperCase()))
+		} catch (error: any) {
+			// Extract underlying MySQL error from Drizzle wrapped error
+			const mysqlError =
+				error?.cause ||
+				error?.error ||
+				(error?.code || error?.errno || error?.sqlState ? error : null)
+
+			console.error('[DB Error] Failed to query room by code:', {
+				roomCode: roomCode.toUpperCase(),
+				drizzleError: error?.message || String(error),
+				mysqlError: mysqlError
+					? {
+							code: mysqlError.code,
+							errno: mysqlError.errno,
+							sqlState: mysqlError.sqlState,
+							sqlMessage: mysqlError.sqlMessage,
+							sql: mysqlError.sql,
+							message: mysqlError.message
+					  }
+					: null,
+				allErrorProps:
+					NODE_ENV === 'development' ? Object.keys(error || {}) : undefined
+			})
+			throw error
+		}
 
 		if (!room) {
 			set.status = 404
 			return wrapResponse(null, 404, '', 'Room not found')
 		}
 
-		const now = new Date()
-
-		// Check if room has openTime
-		if (room.openTime) {
-			// Calculate 15 minutes before openTime
-			const earliestJoinTime = new Date(room.openTime.getTime() - 15 * 60 * 1000)
-
-			if (now < earliestJoinTime) {
-				set.status = 400
-				const openTimeStr = room.openTime.toISOString()
-				return wrapResponse(null, 400, '', `Room is not open yet. You can join 15 minutes before ${openTimeStr}`)
-			}
-		}
-
-		// Check if room is closed
-		if (room.closeTime && now > room.closeTime) {
-			set.status = 400
-			return wrapResponse(null, 400, '', 'Room is already closed')
-		}
-
-		// Check if student is already in the room
+		// Check if student is in the room (added by admin)
 		const [existingParticipant] = await db
 			.select()
 			.from(roomParticipants)
@@ -84,8 +123,19 @@ export const userService = {
 				)
 			)
 
-		if (existingParticipant) {
-			// Already joined, return success
+		// Student must be added to room by admin first
+		if (!existingParticipant) {
+			set.status = 403
+			return wrapResponse(
+				null,
+				403,
+				'',
+				'You are not registered for this exam room. Please contact admin.'
+			)
+		}
+
+		// Check if student already joined (joined_at is not null)
+		if (existingParticipant.joinedAt) {
 			const response: JoinRoomResponse = {
 				message: 'Already joined',
 				roomId: room.uuid,
@@ -96,11 +146,38 @@ export const userService = {
 			return wrapResponse(response, 200, 'You are already in this room')
 		}
 
-		// Add student to room
-		await db.insert(roomParticipants).values({
-			roomUuid: room.uuid,
-			accountUuid: user.userId
-		})
+		const now = new Date()
+
+		// Check if room has openTime
+		if (room.openTime) {
+			// Calculate 15 minutes before openTime
+			const earliestJoinTime = new Date(
+				room.openTime.getTime() - 15 * 60 * 1000
+			)
+
+			if (now < earliestJoinTime) {
+				set.status = 400
+				const openTimeStr = room.openTime.toISOString()
+				return wrapResponse(
+					null,
+					400,
+					'',
+					`Room is not open yet. You can join 15 minutes before ${openTimeStr}`
+				)
+			}
+		}
+
+		// Check if room is closed
+		if (room.closeTime && now > room.closeTime) {
+			set.status = 400
+			return wrapResponse(null, 400, '', 'Room is already closed')
+		}
+
+		// Update joined_at to mark student as joined
+		await db
+			.update(roomParticipants)
+			.set({ joinedAt: now })
+			.where(eq(roomParticipants.uuid, existingParticipant.uuid))
 
 		const response: JoinRoomResponse = {
 			message: 'success',
@@ -110,7 +187,7 @@ export const userService = {
 			closeTime: room.closeTime?.toISOString() ?? null
 		}
 
-		return wrapResponse(response, 201, 'Joined room successfully')
+		return wrapResponse(response, 200, 'Joined room successfully')
 	},
 
 	updateProfile: async ({ body, user, set }: any) => {
@@ -135,7 +212,12 @@ export const userService = {
 
 		if (existingUser && existingUser.uuid !== user.userId) {
 			set.status = 400
-			return wrapResponse(null, 400, '', 'Email already in use by another account')
+			return wrapResponse(
+				null,
+				400,
+				'',
+				'Email already in use by another account'
+			)
 		}
 
 		// Update the profile
@@ -206,7 +288,12 @@ export const userService = {
 
 		if (!participant) {
 			set.status = 403
-			return wrapResponse(null, 403, '', 'You are not a participant of this room')
+			return wrapResponse(
+				null,
+				403,
+				'',
+				'You are not a participant of this room'
+			)
 		}
 
 		// Get all questions/exams in the room
@@ -255,7 +342,12 @@ export const userService = {
 
 		if (!participant) {
 			set.status = 403
-			return wrapResponse(null, 403, '', 'You are not a participant of this room')
+			return wrapResponse(
+				null,
+				403,
+				'',
+				'You are not a participant of this room'
+			)
 		}
 
 		// Check if question exists in this room
@@ -272,7 +364,10 @@ export const userService = {
 		}
 
 		// Check if room is open
-		const [room] = await db.select().from(rooms).where(eq(rooms.uuid, roomId))
+		const [room] = await db
+			.select(selectRoomColumns)
+			.from(rooms)
+			.where(eq(rooms.uuid, roomId))
 
 		if (room) {
 			const now = new Date()
@@ -362,7 +457,12 @@ export const userService = {
 
 		if (!participant) {
 			set.status = 403
-			return wrapResponse(null, 403, '', 'You are not a participant of this room')
+			return wrapResponse(
+				null,
+				403,
+				'',
+				'You are not a participant of this room'
+			)
 		}
 
 		// Get all questions in the room
@@ -408,7 +508,10 @@ export const userService = {
 			for (const sub of questionSubmissions) {
 				if (sub.status === 'AC') {
 					solved = true
-					if (!bestSubmission || (sub.score ?? 0) > (bestSubmission.score ?? 0)) {
+					if (
+						!bestSubmission ||
+						(sub.score ?? 0) > (bestSubmission.score ?? 0)
+					) {
 						bestSubmission = sub
 						myScore = sub.score ?? q.score ?? 0
 					}

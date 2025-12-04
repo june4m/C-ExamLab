@@ -9,7 +9,7 @@ export function useGetExams(roomId: string) {
 		queryKey: ['student', 'rooms', roomId, 'exams'],
 		queryFn: async () => {
 			const { data } = await axios.get<ExamListResponse>(
-				`/student/rooms/${roomId}/exams`
+				`/user/student/rooms/${roomId}/exams`
 			)
 			return data
 		},
@@ -24,7 +24,7 @@ export function useGetQuestion(roomId: string, questionId: string) {
 		queryFn: async () => {
 			// First get the exams list to find the question
 			const { data: examsData } = await axios.get<ExamListResponse>(
-				`/student/rooms/${roomId}/exams`
+				`/user/student/rooms/${roomId}/exams`
 			)
 			const question = examsData.exams.find(
 				exam => exam.questionId === questionId

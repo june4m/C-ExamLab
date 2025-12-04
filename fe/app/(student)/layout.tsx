@@ -7,5 +7,5 @@ export default function StudentLayout({
 }: {
 	children: React.ReactNode
 }) {
-	return <ProtectedRoute>{children}</ProtectedRoute>
+	return <ProtectedRoute requiredRole="USER">{children}</ProtectedRoute>
 }

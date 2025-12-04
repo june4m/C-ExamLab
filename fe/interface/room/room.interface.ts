@@ -2,6 +2,7 @@
 
 export interface Room {
 	roomId: string
+	roomUuid?: string
 	roomName: string
 	creatorName: string
 	creatorEmail: string

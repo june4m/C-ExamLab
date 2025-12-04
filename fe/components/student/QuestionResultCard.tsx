@@ -23,7 +23,7 @@ export function QuestionResultCard({
 	question,
 	roomId
 }: QuestionResultCardProps) {
-	const scorePercentage = question.score > 0 
+	const scorePercentage = question.score && question.score > 0 
 		? Math.round((question.myScore / question.score) * 100) 
 		: 0
 
@@ -56,7 +56,7 @@ export function QuestionResultCard({
 							<Award className="h-4 w-4 text-muted-foreground" />
 							<div>
 								<p className="text-lg font-semibold">
-									{question.myScore} / {question.score}
+									{question.myScore} / {question.score ?? 'N/A'}
 								</p>
 								<p className="text-xs text-muted-foreground">
 									{scorePercentage}% achieved
@@ -72,7 +72,7 @@ export function QuestionResultCard({
 						</div>
 					</div>
 				</div>
-				{question.myScore < question.score && question.attempts > 0 && (
+				{question.score && question.myScore < question.score && question.attempts > 0 && (
 					<div className="pt-2 border-t">
 						<p className="text-xs text-muted-foreground">
 							You can try again to improve your score

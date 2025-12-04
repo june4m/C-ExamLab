@@ -56,7 +56,12 @@ export function LoginForm() {
 			{
 				onSuccess: data => {
 					loginStore(data.token, data.user)
-					router.push('/')
+					// Redirect based on role
+					if (data.user.role === 'ADMIN') {
+						router.push('/admin')
+					} else {
+						router.push('/dashboard')
+					}
 				},
 				onError: (error: Error) => {
 					setErrors({

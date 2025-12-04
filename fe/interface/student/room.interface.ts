@@ -12,17 +12,14 @@ export interface RoomListResponse {
 }
 
 export interface JoinRoomRequest {
-	roomId: string
-	code: string
-	join_at: Date | string
+	roomCode: string // 6 character room code
 }
 
 export interface JoinRoomResponse {
-	name: string
-	open_time: Date | string
-	close_time: Date | string
-	currentTime: Date | string // Server time để sync
-	created_by: string // accountId
-	created_at: Date | string
+	message: string
+	roomId: string
+	roomName: string
+	openTime: string | null
+	closeTime: string | null
 }
 
