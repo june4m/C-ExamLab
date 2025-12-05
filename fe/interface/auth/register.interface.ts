@@ -14,11 +14,3 @@ export interface RegisterResponse {
 	}
 	token: string
 }
-
-export interface ApiResponse<T> {
-	success: boolean
-	message?: string
-	error?: string
-	code: number
-	data?: T
-}

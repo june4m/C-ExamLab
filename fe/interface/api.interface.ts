@@ -1,13 +1,15 @@
 // Base API interfaces
 
 export interface ApiResponse<T> {
-  data?: T
-  error?: string
-  message?: string
+	success: boolean
+	message?: string
+	error?: string
+	code: number
+	data?: T
 }
 
 export interface ApiErrorResponse {
-  error: string
-  message?: string
-  statusCode?: number
+	error: string
+	message?: string
+	statusCode?: number
 }
