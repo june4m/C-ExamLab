@@ -111,17 +111,6 @@ export const questionService = {
 			return wrapResponse(null, 404, '', 'Room not found')
 		}
 
-		// Check if user is owner of the room
-		if (room.createdBy !== user.userId) {
-			set.status = 403
-			return wrapResponse(
-				null,
-				403,
-				'',
-				'Forbidden - You are not the owner of this room'
-			)
-		}
-
 		const questionList = await db
 			.select()
 			.from(questions)
@@ -161,17 +150,6 @@ export const questionService = {
 			return wrapResponse(null, 404, '', 'Question not found')
 		}
 
-		// Check if user is owner of the room
-		if (questionData.roomCreatedBy !== user.userId) {
-			set.status = 403
-			return wrapResponse(
-				null,
-				403,
-				'',
-				'Forbidden - You are not the owner of this room'
-			)
-		}
-
 		const response: QuestionDetail = {
 			uuid: questionData.uuid,
 			roomId: questionData.roomUuid,
@@ -189,7 +167,7 @@ export const questionService = {
 	},
 
 	getAllQuestions: async ({ user }: any) => {
-		// Get all questions from rooms owned by the user
+		// Get all questions from all rooms
 		const questionList = await db
 			.select({
 				uuid: questions.uuid,
@@ -205,7 +183,6 @@ export const questionService = {
 			})
 			.from(questions)
 			.innerJoin(rooms, eq(questions.roomUuid, rooms.uuid))
-			.where(eq(rooms.createdBy, user.userId))
 
 		const formattedList: QuestionDetail[] = questionList.map(q => ({
 			uuid: q.uuid,
@@ -228,7 +205,16 @@ export const questionService = {
 	},
 
 	updateQuestion: async ({ body, user, set }: any) => {
-		const { questionId, title, descriptionPath, score, timeLimit, memoryLimit, order, roomId } = body as UpdateQuestionDto
+		const {
+			questionId,
+			title,
+			descriptionPath,
+			score,
+			timeLimit,
+			memoryLimit,
+			order,
+			roomId
+		} = body as UpdateQuestionDto
 
 		// Get question with room info
 		const [questionData] = await db
@@ -249,32 +235,49 @@ export const questionService = {
 		// Check if user is owner of the room
 		if (questionData.roomCreatedBy !== user.userId) {
 			set.status = 403
-			return wrapResponse(null, 403, '', 'Forbidden - You are not the owner of this room')
+			return wrapResponse(
+				null,
+				403,
+				'',
+				'Forbidden - You are not the owner of this room'
+			)
 		}
 
 		// If roomId is provided, check if new room exists and user owns it
 		if (roomId && roomId !== questionData.roomUuid) {
-			const [newRoom] = await db.select().from(rooms).where(eq(rooms.uuid, roomId))
+			const [newRoom] = await db
+				.select()
+				.from(rooms)
+				.where(eq(rooms.uuid, roomId))
 			if (!newRoom) {
 				set.status = 404
 				return wrapResponse(null, 404, '', 'New room not found')
 			}
 			if (newRoom.createdBy !== user.userId) {
 				set.status = 403
-				return wrapResponse(null, 403, '', 'Forbidden - You are not the owner of the new room')
+				return wrapResponse(
+					null,
+					403,
+					'',
+					'Forbidden - You are not the owner of the new room'
+				)
 			}
 		}
 
 		const updateValues: any = {}
 		if (title !== undefined) updateValues.title = title
-		if (descriptionPath !== undefined) updateValues.descriptionPath = descriptionPath
+		if (descriptionPath !== undefined)
+			updateValues.descriptionPath = descriptionPath
 		if (score !== undefined) updateValues.score = score
 		if (timeLimit !== undefined) updateValues.timeLimit = timeLimit
 		if (memoryLimit !== undefined) updateValues.memoryLimit = memoryLimit
 		if (order !== undefined) updateValues.order = order
 		if (roomId !== undefined) updateValues.roomUuid = roomId
 
-		await db.update(questions).set(updateValues).where(eq(questions.uuid, questionId))
+		await db
+			.update(questions)
+			.set(updateValues)
+			.where(eq(questions.uuid, questionId))
 
 		const response: UpdateQuestionResponse = {
 			message: 'updated successfully'

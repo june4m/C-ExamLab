@@ -11,7 +11,6 @@ import { useRouter } from 'next/navigation'
 
 export default function RoomDashboardPage({
 	params
-	params
 }: {
 	params: Promise<{ roomId: string }>
 }) {

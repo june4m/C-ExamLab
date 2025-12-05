@@ -7,15 +7,6 @@ import type {
 	TestAnswerResponse
 } from '@/interface/student/test.interface'
 
-// ApiResponse wrapper type matching backend
-interface ApiResponse<T> {
-	success: boolean
-	message?: string
-	error?: string
-	code: number
-	data?: T
-}
-
 // Backend JudgeFromFile request format
 interface JudgeFromFileRequest {
 	code: string
@@ -94,16 +85,11 @@ export function useTestAnswer() {
 				includePrivate: false // Only use public test cases for testing
 			}
 
-			const { data } = await axios.post<ApiResponse<JudgeResult>>(
+			// Backend returns JudgeResult directly (not wrapped in ApiResponse)
+			const { data: judgeResult } = await axios.post<JudgeResult>(
 				'/compiler/judge-from-file',
 				backendRequest
 			)
-
-			if (!data.success || !data.data) {
-				throw new Error(data.error || data.message || 'Failed to test answer')
-			}
-
-			const judgeResult = data.data
 
 			// Check for compilation error
 			// - Top-level error field indicates compilation/judge error
@@ -113,6 +99,11 @@ export function useTestAnswer() {
 				!!judgeResult.error ||
 				(judgeResult.results.length > 0 &&
 					judgeResult.results.every(r => r.error && !r.actualOutput))
+
+			// Throw error if there's a top-level compilation/judge error
+			if (judgeResult.error) {
+				throw new Error(judgeResult.error)
+			}
 
 			// Transform backend response to frontend format
 			const response: TestAnswerResponse = {

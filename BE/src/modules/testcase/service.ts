@@ -1,6 +1,6 @@
 import { readFile, writeFile, mkdir, readdir, unlink, stat } from 'fs/promises'
 import { existsSync } from 'fs'
-import { join } from 'path'
+import { join, dirname, resolve } from 'path'
 import type {
 	TestCaseInfo,
 	LoadTestCasesRequest,
@@ -13,8 +13,25 @@ export class TestCaseService {
 	private basePath: string
 
 	constructor() {
-		// Store test cases in testcases directory at project root
-		this.basePath = join(process.cwd(), 'testcases')
+		// Store test cases in testcases directory at BE root
+		// Resolve path relative to this file: BE/src/modules/testcase/service.ts -> BE/testcases
+		let currentDir: string
+
+		// Bun supports import.meta.path, Node.js uses __dirname
+		if (typeof import.meta !== 'undefined' && import.meta.path) {
+			currentDir = dirname(import.meta.path)
+		} else if (typeof __dirname !== 'undefined') {
+			currentDir = __dirname
+		} else {
+			// Fallback: assume we're in BE directory
+			currentDir = process.cwd()
+		}
+
+		const beDir = resolve(currentDir, '..', '..', '..')
+		this.basePath = join(beDir, 'testcases')
+
+		// Log the resolved path for debugging
+		console.log(`[TestCaseService] Base path resolved to: ${this.basePath}`)
 	}
 
 	/**
@@ -78,13 +95,14 @@ export class TestCaseService {
 	/**
 	 * Load all test cases for a question
 	 */
-	async loadTestCases(
-		request: LoadTestCasesRequest
-	): Promise<TestCaseInfo[]> {
+	async loadTestCases(request: LoadTestCasesRequest): Promise<TestCaseInfo[]> {
 		const { roomId, questionId, includePrivate = false } = request
 		const testCaseDir = this.getTestCaseDir(roomId, questionId)
 
 		if (!existsSync(testCaseDir)) {
+			console.warn(
+				`[TestCaseService] Test case directory not found: ${testCaseDir} for roomId=${roomId}, questionId=${questionId}`
+			)
 			return []
 		}
 
@@ -101,20 +119,45 @@ export class TestCaseService {
 			}
 		}
 
-		const testCases: TestCaseInfo[] = []
+		if (testCaseNumbers.size === 0) {
+			console.warn(
+				`[TestCaseService] No test case files found in ${testCaseDir} for roomId=${roomId}, questionId=${questionId}`
+			)
+		}
 
-		for (const testCaseNumber of Array.from(testCaseNumbers).sort((a, b) => a - b)) {
+		const testCases: TestCaseInfo[] = []
+		let skippedPrivateCount = 0
+
+		for (const testCaseNumber of Array.from(testCaseNumbers).sort(
+			(a, b) => a - b
+		)) {
 			try {
-				const inputPath = this.getInputFilePath(roomId, questionId, testCaseNumber)
-				const outputPath = this.getOutputFilePath(roomId, questionId, testCaseNumber)
-				const metadataPath = this.getMetadataFilePath(roomId, questionId, testCaseNumber)
+				const inputPath = this.getInputFilePath(
+					roomId,
+					questionId,
+					testCaseNumber
+				)
+				const outputPath = this.getOutputFilePath(
+					roomId,
+					questionId,
+					testCaseNumber
+				)
+				const metadataPath = this.getMetadataFilePath(
+					roomId,
+					questionId,
+					testCaseNumber
+				)
 
 				// Read input and output
 				const input = await readFile(inputPath, 'utf-8')
 				const expectedOutput = await readFile(outputPath, 'utf-8')
 
 				// Read metadata if exists
-				let metadata: { isPublic?: boolean; points?: number; description?: string } = {}
+				let metadata: {
+					isPublic?: boolean
+					points?: number
+					description?: string
+				} = {}
 				if (existsSync(metadataPath)) {
 					try {
 						const metadataContent = await readFile(metadataPath, 'utf-8')
@@ -124,8 +167,13 @@ export class TestCaseService {
 					}
 				}
 
+				// Default to public if not specified (test cases without metadata are public by default)
+				const isPublic =
+					metadata.isPublic !== undefined ? metadata.isPublic : true
+
 				// Skip private test cases if not including private
-				if (!includePrivate && metadata.isPublic === false) {
+				if (!includePrivate && !isPublic) {
+					skippedPrivateCount++
 					continue
 				}
 
@@ -135,7 +183,7 @@ export class TestCaseService {
 					testCaseNumber,
 					input,
 					expectedOutput,
-					isPublic: metadata.isPublic,
+					isPublic,
 					points: metadata.points,
 					description: metadata.description
 				})
@@ -148,6 +196,16 @@ export class TestCaseService {
 			}
 		}
 
+		if (skippedPrivateCount > 0) {
+			console.log(
+				`[TestCaseService] Skipped ${skippedPrivateCount} private test case(s) for roomId=${roomId}, questionId=${questionId} (includePrivate=${includePrivate})`
+			)
+		}
+
+		console.log(
+			`[TestCaseService] Loaded ${testCases.length} test case(s) for roomId=${roomId}, questionId=${questionId} (includePrivate=${includePrivate})`
+		)
+
 		return testCases
 	}
 
@@ -155,7 +213,16 @@ export class TestCaseService {
 	 * Create a new test case
 	 */
 	async createTestCase(request: CreateTestCaseRequest): Promise<TestCaseInfo> {
-		const { roomId, questionId, testCaseNumber, input, expectedOutput, isPublic, points, description } = request
+		const {
+			roomId,
+			questionId,
+			testCaseNumber,
+			input,
+			expectedOutput,
+			isPublic,
+			points,
+			description
+		} = request
 
 		// Ensure directory exists
 		const testCaseDir = this.getTestCaseDir(roomId, questionId)
@@ -207,7 +274,16 @@ export class TestCaseService {
 	 * Update an existing test case
 	 */
 	async updateTestCase(request: UpdateTestCaseRequest): Promise<TestCaseInfo> {
-		const { roomId, questionId, testCaseNumber, input, expectedOutput, isPublic, points, description } = request
+		const {
+			roomId,
+			questionId,
+			testCaseNumber,
+			input,
+			expectedOutput,
+			isPublic,
+			points,
+			description
+		} = request
 
 		const inputPath = this.getInputFilePath(roomId, questionId, testCaseNumber)
 		if (!existsSync(inputPath)) {
@@ -231,8 +307,16 @@ export class TestCaseService {
 		}
 
 		// Update metadata
-		const metadataPath = this.getMetadataFilePath(roomId, questionId, testCaseNumber)
-		let metadata: { isPublic?: boolean; points?: number; description?: string } = {}
+		const metadataPath = this.getMetadataFilePath(
+			roomId,
+			questionId,
+			testCaseNumber
+		)
+		let metadata: {
+			isPublic?: boolean
+			points?: number
+			description?: string
+		} = {}
 
 		if (existsSync(metadataPath)) {
 			try {
@@ -252,11 +336,15 @@ export class TestCaseService {
 		await writeFile(metadataPath, JSON.stringify(metadata, null, 2), 'utf-8')
 
 		// Read current input/output to return complete info
-		const currentInput = input !== undefined ? input : await readFile(inputPath, 'utf-8')
+		const currentInput =
+			input !== undefined ? input : await readFile(inputPath, 'utf-8')
 		const currentOutput =
 			expectedOutput !== undefined
 				? expectedOutput
-				: await readFile(this.getOutputFilePath(roomId, questionId, testCaseNumber), 'utf-8')
+				: await readFile(
+						this.getOutputFilePath(roomId, questionId, testCaseNumber),
+						'utf-8'
+				  )
 
 		return {
 			roomId,
@@ -277,8 +365,16 @@ export class TestCaseService {
 		const { roomId, questionId, testCaseNumber } = request
 
 		const inputPath = this.getInputFilePath(roomId, questionId, testCaseNumber)
-		const outputPath = this.getOutputFilePath(roomId, questionId, testCaseNumber)
-		const metadataPath = this.getMetadataFilePath(roomId, questionId, testCaseNumber)
+		const outputPath = this.getOutputFilePath(
+			roomId,
+			questionId,
+			testCaseNumber
+		)
+		const metadataPath = this.getMetadataFilePath(
+			roomId,
+			questionId,
+			testCaseNumber
+		)
 
 		// Delete all related files
 		const deletePromises: Promise<void>[] = []
@@ -324,4 +420,3 @@ export class TestCaseService {
 }
 
 export const testCaseService = new TestCaseService()
-

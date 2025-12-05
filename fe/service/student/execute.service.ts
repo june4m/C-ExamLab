@@ -7,13 +7,32 @@ import type {
 	ExecuteCodeResponse
 } from '@/interface/student/execute.interface'
 
-// ApiResponse wrapper type matching backend
-interface ApiResponse<T> {
-	success: boolean
-	message?: string
+// Backend JudgeFromFile request format
+interface JudgeFromFileRequest {
+	code: string
+	roomId: string
+	questionId: string
+	includePrivate?: boolean
+	timeLimit?: number
+	memoryLimit?: number
+	optimizationLevel?: 0 | 1 | 2 | 3 | 's'
+}
+
+// Backend JudgeResult response format (direct response, not wrapped)
+interface JudgeResult {
+	passed: number
+	failed: number
+	total: number
+	results: Array<{
+		testCase: number
+		passed: boolean
+		input: string
+		expectedOutput: string
+		actualOutput?: string
+		error?: string
+		executionTime?: number
+	}>
 	error?: string
-	code: number
-	data?: T
 }
 
 export function useExecuteCode() {
@@ -21,20 +40,38 @@ export function useExecuteCode() {
 		mutationFn: async (
 			request: ExecuteCodeRequest
 		): Promise<ExecuteCodeResponse> => {
-			const { data } = await axios.post<ApiResponse<ExecuteCodeResponse>>(
-				'/student/questions/execute',
-				request
-			)
-			if (!data.success || !data.data) {
-				throw new Error(
-					data.error || data.message || 'Failed to execute code'
-				)
+			// Use judge-from-file endpoint with only example test cases (includePrivate: false)
+			const backendRequest: JudgeFromFileRequest = {
+				code: request.answerCode,
+				roomId: request.roomId,
+				questionId: request.questionId,
+				includePrivate: false // Only use example/public test cases for execution
 			}
-			return data.data
+
+			// Backend returns JudgeResult directly (not wrapped in ApiResponse)
+			const { data } = await axios.post<JudgeResult>(
+				'/compiler/judge-from-file',
+				backendRequest
+			)
+
+			// Check for compilation/judge error
+			if (data.error) {
+				throw new Error(data.error)
+			}
+
+			// Transform backend response to frontend format
+			// Map each test case result to ExecuteResult format
+			const response: ExecuteCodeResponse = {
+				results: data.results.map(result => ({
+					currentTestCase: result.actualOutput || result.error || '(no output)',
+					exampleTestCase: result.expectedOutput || '(no expected output)'
+				}))
+			}
+
+			return response
 		},
-		onError: (error) => {
+		onError: error => {
 			console.error('Execute code error:', error)
 		}
 	})
 }
-

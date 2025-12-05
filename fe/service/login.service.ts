@@ -2,9 +2,9 @@ import { useMutation } from '@tanstack/react-query'
 import { axiosGeneral as axios } from '@/common/axios'
 import type {
 	LoginRequest,
-	LoginResponse,
-	ApiResponse
+	LoginResponse
 } from '@/interface/auth/login.interface'
+import type { ApiResponse } from '@/interface'
 
 export function useLogin() {
 	return useMutation({

@@ -9,12 +9,61 @@ import { useGetRoomDetails } from '@/service/student/room.service'
 import { useTestAnswer } from '@/service/student/test.service'
 import { useExecuteCode } from '@/service/student/execute.service'
 import { useSubmitAnswer } from '@/service/student/submission.service'
-import { Loader2, AlertCircle } from 'lucide-react'
-import { Card, CardContent } from '@/components/ui/card'
+import { Loader2, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useToast } from '@/components/ui/use-toast'
+import {
+	Collapsible,
+	CollapsibleContent,
+	CollapsibleTrigger
+} from '@/components/ui/collapsible'
+import { Badge } from '@/components/ui/badge'
+import { cn } from '@/lib/utils'
 import type { TestAnswerResponse } from '@/interface/student/test.interface'
 import type { ExecuteCodeResponse } from '@/interface/student/execute.interface'
 import type { SubmitAnswerResponse } from '@/interface/student/submission.interface'
+
+// Helper functions for status display
+function getStatusDisplayName(status: string): string {
+	const statusMap: Record<string, string> = {
+		PENDING: 'Pending',
+		RUNNING: 'Running',
+		AC: 'Accepted',
+		WA: 'Wrong Answer',
+		TLE: 'Time Limit Exceeded',
+		MLE: 'Memory Limit Exceeded',
+		RE: 'Runtime Error',
+		CE: 'Compilation Error',
+		JUDGE_ERROR: 'Judge Error',
+		SKIP: 'Skipped'
+	}
+	return statusMap[status.toUpperCase()] || status
+}
+
+function getStatusBadgeVariant(
+	status: string
+): 'success' | 'destructive' | 'warning' | 'default' {
+	const upperStatus = status.toUpperCase()
+
+	if (upperStatus === 'AC') {
+		return 'success'
+	}
+
+	if (upperStatus === 'TLE' || upperStatus === 'MLE') {
+		return 'warning'
+	}
+
+	if (
+		upperStatus === 'WA' ||
+		upperStatus === 'RE' ||
+		upperStatus === 'CE' ||
+		upperStatus === 'JUDGE_ERROR'
+	) {
+		return 'destructive'
+	}
+
+	return 'default'
+}
 
 export default function QuestionPage({
 	params
@@ -42,6 +91,10 @@ export default function QuestionPage({
 		useState<ExecuteCodeResponse | null>(null)
 	const [submissionResult, setSubmissionResult] =
 		useState<SubmitAnswerResponse | null>(null)
+
+	// Collapsible states for better UX
+	const [isTestResultsOpen, setIsTestResultsOpen] = useState(false)
+	const [isSubmissionResultsOpen, setIsSubmissionResultsOpen] = useState(false)
 
 	const isLoading = questionLoading || roomLoading
 	const error = questionError || roomError
@@ -76,12 +129,24 @@ export default function QuestionPage({
 	const handleTest = async (code: string) => {
 		try {
 			setTestResult(null)
+			setIsTestResultsOpen(true) // Auto-expand results
 			const result = await testMutation.mutateAsync({
 				roomId: roomId,
 				questionId: questionId,
 				answerCode: code
 			})
 			setTestResult(result)
+
+			// Check compilation status first
+			if (result.compileStatus !== 'success') {
+				toast({
+					title: 'Compilation failed',
+					description:
+						'Your code could not be compiled. Please check for syntax errors.',
+					variant: 'destructive'
+				})
+				return
+			}
 
 			if (result.overallPassed) {
 				toast({
@@ -112,6 +177,7 @@ export default function QuestionPage({
 	const handleSubmit = async (code: string) => {
 		try {
 			setSubmissionResult(null)
+			setIsSubmissionResultsOpen(true) // Auto-expand results
 			const result = await submitMutation.mutateAsync({
 				roomId: roomId,
 				questionId: questionId,
@@ -119,17 +185,15 @@ export default function QuestionPage({
 			})
 			setSubmissionResult(result)
 
-			const statusLower = result.status.toLowerCase()
-			const isSuccess =
-				statusLower.includes('accepted') ||
-				statusLower.includes('success') ||
-				statusLower.includes('passed')
+			// Check if submission was accepted
+			const isSuccess = result.status.toUpperCase() === 'AC'
+			const statusDisplayName = getStatusDisplayName(result.status)
 
 			toast({
 				title: isSuccess ? 'Submission successful!' : 'Submission completed',
 				description: isSuccess
-					? `Your answer scored ${result.score} points!`
-					: `Status: ${result.status}. Score: ${result.score}`,
+					? `Your answer scored ${result.score ?? 0} points!`
+					: `Status: ${statusDisplayName}. Score: ${result.score ?? 0}`,
 				variant: isSuccess ? 'default' : 'destructive'
 			})
 		} catch (error) {
@@ -164,11 +228,12 @@ ${index < result.results.length - 1 ? '\n---\n' : ''}`
 	}
 
 	const executeOutput = formatExecuteOutput(executeResult)
-	const executeError = executeMutation.error
-		? executeMutation.error instanceof Error
+	const executeError =
+		executeMutation.error instanceof Error
 			? executeMutation.error.message
-			: 'An error occurred while executing your code.'
-		: ''
+			: executeMutation.error
+			? String(executeMutation.error)
+			: ''
 
 	if (isLoading) {
 		return (
@@ -204,6 +269,25 @@ ${index < result.results.length - 1 ? '\n---\n' : ''}`
 		)
 	}
 
+	const hasTestResults =
+		testResult || testMutation.isPending || testMutation.error
+	const hasSubmissionResults =
+		submissionResult || submitMutation.isPending || submitMutation.error
+
+	// Get test result summary for badge
+	const getTestSummary = () => {
+		if (!testResult || testResult.compileStatus !== 'success') return null
+		const passedCount = testResult.results.filter(r => r.passed).length
+		const totalCount = testResult.results.length
+		return {
+			passed: passedCount,
+			total: totalCount,
+			allPassed: testResult.overallPassed
+		}
+	}
+
+	const testSummary = getTestSummary()
+
 	return (
 		<div className="container mx-auto p-4 space-y-6">
 			<ExamQuestionView
@@ -218,21 +302,156 @@ ${index < result.results.length - 1 ? '\n---\n' : ''}`
 				executeOutput={executeOutput}
 				executeError={executeError}
 			/>
-			{(testResult || testMutation.isPending || testMutation.error) && (
-				<TestResults
-					result={testResult}
-					isLoading={testMutation.isPending}
-					error={testMutation.error as Error | null}
-				/>
+
+			{/* Test Results - Collapsible */}
+			{hasTestResults && (
+				<Collapsible
+					open={isTestResultsOpen}
+					onOpenChange={setIsTestResultsOpen}
+				>
+					<Card className="border-2">
+						<CollapsibleTrigger className="w-full">
+							<CardHeader className="hover:bg-muted/50 transition-colors cursor-pointer">
+								<div className="flex items-center justify-between">
+									<div className="flex items-center gap-3">
+										{isTestResultsOpen ? (
+											<ChevronUp className="h-5 w-5 text-muted-foreground" />
+										) : (
+											<ChevronDown className="h-5 w-5 text-muted-foreground" />
+										)}
+										<CardTitle className="text-lg">Test Results</CardTitle>
+										{testMutation.isPending && (
+											<Loader2 className="h-4 w-4 animate-spin text-primary" />
+										)}
+									</div>
+									{testSummary && (
+										<Badge
+											variant={
+												testSummary.allPassed ? 'success' : 'destructive'
+											}
+											className="text-sm"
+										>
+											{testSummary.passed}/{testSummary.total} Passed
+										</Badge>
+									)}
+									{testMutation.error && (
+										<Badge variant="destructive" className="text-sm">
+											Error
+										</Badge>
+									)}
+									{testResult && testResult.compileStatus !== 'success' && (
+										<Badge variant="destructive" className="text-sm">
+											Compilation Failed
+										</Badge>
+									)}
+								</div>
+							</CardHeader>
+						</CollapsibleTrigger>
+						<CollapsibleContent>
+							<CardContent className="pt-0">
+								<TestResults
+									result={testResult}
+									isLoading={testMutation.isPending}
+									error={
+										testMutation.error instanceof Error
+											? testMutation.error
+											: testMutation.error
+											? new Error(String(testMutation.error))
+											: null
+									}
+									noCard={true}
+								/>
+							</CardContent>
+						</CollapsibleContent>
+					</Card>
+				</Collapsible>
 			)}
-			{(submissionResult ||
-				submitMutation.isPending ||
-				submitMutation.error) && (
-				<SubmissionResults
-					result={submissionResult}
-					isLoading={submitMutation.isPending}
-					error={submitMutation.error as Error | null}
-				/>
+
+			{/* Submission Results - Collapsible */}
+			{hasSubmissionResults && (
+				<Collapsible
+					open={isSubmissionResultsOpen}
+					onOpenChange={setIsSubmissionResultsOpen}
+				>
+					<Card
+						className={cn(
+							'border-2',
+							submissionResult && submissionResult.status.toUpperCase() === 'AC'
+								? 'border-green-500 dark:border-green-600'
+								: submissionResult &&
+								  (submissionResult.status.toUpperCase() === 'WA' ||
+										submissionResult.status.toUpperCase() === 'RE' ||
+										submissionResult.status.toUpperCase() === 'CE' ||
+										submissionResult.status.toUpperCase() === 'JUDGE_ERROR')
+								? 'border-red-500 dark:border-red-600'
+								: submissionResult &&
+								  (submissionResult.status.toUpperCase() === 'TLE' ||
+										submissionResult.status.toUpperCase() === 'MLE')
+								? 'border-yellow-500 dark:border-yellow-600'
+								: ''
+						)}
+					>
+						<CollapsibleTrigger className="w-full">
+							<CardHeader className="hover:bg-muted/50 transition-colors cursor-pointer">
+								<div className="flex items-center justify-between">
+									<div className="flex items-center gap-3">
+										{isSubmissionResultsOpen ? (
+											<ChevronUp className="h-5 w-5 text-muted-foreground" />
+										) : (
+											<ChevronDown className="h-5 w-5 text-muted-foreground" />
+										)}
+										<CardTitle className="text-lg">
+											Submission Results
+										</CardTitle>
+										{submitMutation.isPending && (
+											<Loader2 className="h-4 w-4 animate-spin text-primary" />
+										)}
+									</div>
+									{submissionResult && (
+										<div className="flex items-center gap-2">
+											<Badge
+												variant={getStatusBadgeVariant(submissionResult.status)}
+												className="text-sm"
+											>
+												{getStatusDisplayName(submissionResult.status)}
+											</Badge>
+											{submissionResult.score !== null &&
+												submissionResult.score !== undefined && (
+													<Badge
+														variant="outline"
+														className="text-sm font-semibold"
+													>
+														Score: {submissionResult.score}
+													</Badge>
+												)}
+										</div>
+									)}
+									{submitMutation.error && (
+										<Badge variant="destructive" className="text-sm">
+											Error
+										</Badge>
+									)}
+								</div>
+							</CardHeader>
+						</CollapsibleTrigger>
+						<CollapsibleContent>
+							<CardContent className="pt-0">
+								<SubmissionResults
+									result={submissionResult}
+									isLoading={submitMutation.isPending}
+									error={
+										submitMutation.error instanceof Error
+											? submitMutation.error
+											: submitMutation.error
+											? new Error(String(submitMutation.error))
+											: null
+									}
+									noCard={true}
+								/>
+							</CardContent>
+						</CollapsibleContent>
+					</Card>
+				</Collapsible>
 			)}
 		</div>
 	)
