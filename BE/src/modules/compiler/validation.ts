@@ -73,6 +73,47 @@ export function validateCode(code: string): void {
 		}
 	}
 
+	// Check for macro abuse - dangerous patterns hidden in #define
+	// Look for common obfuscation techniques
+	const macroPatterns = [
+		/#define\s+\w+[^;]*system/gi, // #define MACRO system(...)
+		/#define\s+\w+[^;]*exec/gi, // #define MACRO exec...
+		/#define\s+\w+[^;]*fork/gi, // #define MACRO fork(...)
+		/#define\s+\w+[^;]*socket/gi, // #define MACRO socket(...)
+		/#define\s+\w+[^;]*open\s*\(/gi, // #define MACRO open(...)
+		/#define\s+\w+[^;]*popen/gi, // #define MACRO popen(...)
+		/#define\s+\w+[^;]*clone/gi, // #define MACRO clone(...)
+		/#define\s+\w+[^;]*ptrace/gi, // #define MACRO ptrace(...)
+		/#define\s+\w+[^;]*mount/gi, // #define MACRO mount(...)
+		/#define\s+\w+[^;]*chmod/gi, // #define MACRO chmod(...)
+		/#define\s+\w+[^;]*chown/gi // #define MACRO chown(...)
+	]
+
+	for (const macroPattern of macroPatterns) {
+		if (macroPattern.test(code)) {
+			throw new ValidationError(
+				'Code contains dangerous operations in macro definitions. System calls and low-level operations are not allowed.'
+			)
+		}
+	}
+
+	// Check for function pointer casting to bypass validation
+	// Pattern: (return_type(*)(args))function_name - used to call dangerous functions
+	const functionPointerPatterns = [
+		/\(\s*\w+\s*\(\s*\*\s*\)\s*\([^)]*\)\s*\)\s*(system|exec|fork|socket|open|popen|clone|ptrace|mount|chmod|chown|unlink|remove|rename|mkdir|rmdir)/gi,
+		/dlopen\s*\(/gi, // Dynamic loading
+		/dlsym\s*\(/gi, // Get symbol from dynamic lib
+		/getenv\s*\(/gi // Get environment variables (for bypass)
+	]
+
+	for (const fpPattern of functionPointerPatterns) {
+		if (fpPattern.test(code)) {
+			throw new ValidationError(
+				'Code contains function pointer casting, dynamic loading, or environment variable access. These techniques are not allowed for security reasons.'
+			)
+		}
+	}
+
 	// Check for null bytes (potential injection)
 	if (code.includes('\0')) {
 		throw new ValidationError('Code cannot contain null bytes')

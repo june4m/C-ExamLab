@@ -41,14 +41,72 @@ export class CompilerConfig {
 
 	// Security: Dangerous patterns to check in code
 	static readonly DANGEROUS_PATTERNS = [
+		// --- Process & Execution ---
 		/system\s*\(/gi,
-		/exec[lv][pe]?\s*\(/gi,
+		/exec[lv][pe]?\s*\(/gi, // execl, execle, execlp, execv, execve, execvp
 		/popen\s*\(/gi,
 		/fork\s*\(/gi,
+		/vfork\s*\(/gi,
 		/clone\s*\(/gi,
+		/wait\s*\(/gi,
+		/waitpid\s*\(/gi,
+
+		// --- File System & IO ---
+		/fopen\s*\(/gi,
+		/freopen\s*\(/gi,
+		/open\s*\(/gi,
+		/openat\s*\(/gi,
+		/unlink\s*\(/gi,
+		/remove\s*\(/gi,
+		/rename\s*\(/gi,
+		/mkdir\s*\(/gi,
+		/rmdir\s*\(/gi,
+		/opendir\s*\(/gi,
+		/readdir\s*\(/gi,
+		/chown\s*\(/gi,
+		/chmod\s*\(/gi,
+		/symlink\s*\(/gi,
+		/link\s*\(/gi,
+		/std::fstream/gi,
+		/std::ifstream/gi,
+		/std::ofstream/gi,
+
+		// --- Network ---
+		/socket\s*\(/gi,
+		/connect\s*\(/gi,
+		/bind\s*\(/gi,
+		/listen\s*\(/gi,
+		/accept\s*\(/gi,
+		/gethostbyname\s*\(/gi,
+		/getaddrinfo\s*\(/gi,
+
+		// --- Memory & Signals ---
 		/#include\s*<sys\/ptrace\.h>/gi,
+		/#include\s*<sys\/mman\.h>/gi,
+		/#include\s*<sys\/shm\.h>/gi,
+		/#include\s*<dlfcn\.h>/gi,
+		/ptrace\s*\(/gi,
+		/mmap\s*\(/gi,
+		/shmget\s*\(/gi,
+		/dlopen\s*\(/gi,
+		/kill\s*\(/gi,
+		/raise\s*\(/gi,
+		/signal\s*\(/gi,
+
+		// --- Assembly / Low level ---
 		/__asm__/gi,
-		/asm\s+volatile/gi
+		/asm\s+volatile/gi,
+		/__asm\s+/gi,
+
+		// --- Environment / User ---
+		/getenv\s*\(/gi, // Đôi khi cần chặn để không đọc biến môi trường server
+		/setenv\s*\(/gi,
+		/setuid\s*\(/gi,
+		/setgid\s*\(/gi,
+
+		// --- Includes nguy hiểm ---
+		/#include\s*<unistd\.h>/gi, // Chứa hầu hết các syscall nguy hiểm (read, write, fork...)
+		/#include\s*<windows\.h>/gi // Nếu server chạy windows
 	]
 
 	// File extension validation
@@ -56,4 +114,9 @@ export class CompilerConfig {
 
 	// Maximum number of concurrent compilations
 	static readonly MAX_CONCURRENT_COMPILATIONS = 40 // Across all containers - ~8 per container max
+
+	// Security profiles
+	static readonly SECCOMP_PROFILE_PATH =
+		'./src/modules/compiler/seccomp.profile.json'
+	static readonly RUN_USER = 'nobody' // Run code with low-privilege user
 }

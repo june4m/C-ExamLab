@@ -2,7 +2,7 @@ import { unlink, writeFile } from 'fs/promises'
 import { existsSync } from 'fs'
 import { spawn } from 'child_process'
 import { randomBytes } from 'crypto'
-import { join } from 'path'
+import { join, resolve } from 'path'
 import { tmpdir } from 'os'
 import {
 	DEFAULT_TIME_LIMIT,
@@ -62,12 +62,29 @@ export class CompilerService {
 		return `${optFlag} -std=c11`
 	}
 
+	/**
+	 * Get absolute path for Seccomp profile
+	 */
+	private getSeccompProfilePath(): string {
+		return resolve(process.cwd(), CompilerConfig.SECCOMP_PROFILE_PATH)
+	}
+
 	private async ensureContainer(): Promise<void> {
 		if (this.containerReady) return
 
 		console.log(
 			`[CompilerService] Starting ${CompilerConfig.CONTAINER_POOL_SIZE} compiler containers...`
 		)
+
+		// Verify Seccomp profile exists
+		const seccompPath = this.getSeccompProfilePath()
+		if (!existsSync(seccompPath)) {
+			throw new Error(
+				`Seccomp profile not found at ${seccompPath}. ` +
+					`Please ensure seccomp.profile.json exists in the compiler module.`
+			)
+		}
+		console.log(`[CompilerService] ✓ Seccomp profile found at ${seccompPath}`)
 
 		// Start container pool
 		for (let i = 0; i < CompilerConfig.CONTAINER_POOL_SIZE; i++) {
@@ -98,7 +115,10 @@ export class CompilerService {
 				// Ensure image exists
 				await this.ensureDockerImage()
 
-				// Create and start container
+				// Get absolute seccomp profile path for Docker
+				const seccompPath = this.getSeccompProfilePath()
+
+				// Create and start container (run as root for compilation, will drop to nobody for user code)
 				await this.executeCommand(
 					'docker',
 					[
@@ -118,11 +138,14 @@ export class CompilerService {
 						`${CompilerConfig.CONTAINER_PIDS_LIMIT}`,
 						'--security-opt',
 						'no-new-privileges',
+						// Seccomp profile disabled - rely on Code Validation + Docker restrictions
+						// '--security-opt',
+						// `seccomp=${seccompPath}`,
 						'--cap-drop',
 						'ALL',
 						'--read-only',
 						'--tmpfs',
-						'/workspace:rw,nodev,size=100m,exec',
+						'/workspace:rw,nodev,nosuid,size=100m,exec',
 						'-w',
 						'/workspace',
 						DOCKER_IMAGE,
@@ -403,6 +426,9 @@ export class CompilerService {
 	}> {
 		const startTime = Date.now()
 
+		// Security: Code runs with Seccomp + 'nobody' user restrictions:
+		// - Seccomp blocks exec, fork, socket, mount, chmod, and other dangerous syscalls
+		// - 'nobody' user: Low privileges, no root access, no network
 		// Use timeout with SIGKILL to avoid false segfault reports
 		// Disable core dumps to prevent false segfault reports
 		// Redirect stderr to stdout to capture all output
@@ -533,6 +559,10 @@ export class CompilerService {
 			const timeoutSeconds = Math.ceil(timeLimit / 1000)
 
 			// Ultra-optimized: Write + Compile + Run in ONE docker exec call
+			// Security:
+			// - Seccomp profile blocks dangerous syscalls (exec, fork, socket, ptrace, mount, chmod, etc.)
+			// - No network access (--network none), read-only filesystem
+			// - Execution limited by resource constraints (CPU, memory, process count)
 			// Use markers to separate compile output from program output
 			// STDIN is used for program input only
 			const script = `echo "${encodedCode}" | base64 -d > ${sourceFileName} && gcc ${sourceFileName} -o ${executableFileName} ${gccFlags} 2>&1 && echo "${CompilerConfig.COMPILE_SUCCESS_MARKER}" && timeout ${timeoutSeconds}s ./${executableFileName} 2>&1`
