@@ -142,8 +142,8 @@ export const roomService = {
 			return wrapResponse(null, 404, '', 'Room not found')
 		}
 
-		// Check ownership
-		if (room.createdBy !== user.userId) {
+		// Admins can bypass ownership check
+		if (!user.isAdmin && room.createdBy !== user.userId) {
 			set.status = 403
 			return wrapResponse(
 				null,
@@ -209,8 +209,8 @@ export const roomService = {
 			return wrapResponse(null, 404, '', 'Room not found')
 		}
 
-		// Check ownership
-		if (room.createdBy !== user.userId) {
+		// Admins can bypass ownership check
+		if (!user.isAdmin && room.createdBy !== user.userId) {
 			set.status = 403
 			return wrapResponse(
 				null,

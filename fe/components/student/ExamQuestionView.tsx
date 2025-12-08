@@ -174,6 +174,7 @@ export function ExamQuestionView({
 			{/* Action Buttons */}
 			<div className="flex gap-4">
 				<Button
+					type="button"
 					onClick={handleExecute}
 					disabled={!code.trim() || isExecuting || isTesting || isSubmitting}
 					variant="default"
@@ -192,6 +193,7 @@ export function ExamQuestionView({
 					)}
 				</Button>
 				<Button
+					type="button"
 					onClick={handleTest}
 					disabled={!code.trim() || isTesting || isExecuting || isSubmitting}
 					variant="outline"
@@ -211,6 +213,7 @@ export function ExamQuestionView({
 					)}
 				</Button>
 				<Button
+					type="button"
 					onClick={handleSubmit}
 					disabled={!code.trim() || isTesting || isExecuting || isSubmitting}
 					size="lg"

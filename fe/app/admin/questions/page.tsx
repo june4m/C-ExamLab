@@ -208,10 +208,26 @@ export default function AdminQuestionsPage() {
 				setIsDialogOpen(false)
 				resetForm()
 			},
-			onError: () => {
+			onError: (error: unknown) => {
+				console.error('Create question error:', error)
+				const errorMessage =
+					(
+						error as {
+							response?: { data?: { error?: string; message?: string } }
+							message?: string
+						}
+					)?.response?.data?.error ||
+					(
+						error as {
+							response?: { data?: { error?: string; message?: string } }
+							message?: string
+						}
+					)?.response?.data?.message ||
+					(error as { message?: string })?.message ||
+					'Không thể tạo câu hỏi'
 				toast({
 					title: 'Lỗi',
-					description: 'Không thể tạo câu hỏi',
+					description: errorMessage,
 					variant: 'destructive'
 				})
 			}
@@ -254,10 +270,26 @@ export default function AdminQuestionsPage() {
 					setEditingQuestion(null)
 					resetForm()
 				},
-				onError: () => {
+				onError: (error: unknown) => {
+					console.error('Update question error:', error)
+					const errorMessage =
+						(
+							error as {
+								response?: { data?: { error?: string; message?: string } }
+								message?: string
+							}
+						)?.response?.data?.error ||
+						(
+							error as {
+								response?: { data?: { error?: string; message?: string } }
+								message?: string
+							}
+						)?.response?.data?.message ||
+						(error as { message?: string })?.message ||
+						'Không thể cập nhật câu hỏi'
 					toast({
 						title: 'Lỗi',
-						description: 'Không thể cập nhật câu hỏi',
+						description: errorMessage,
 						variant: 'destructive'
 					})
 				}
