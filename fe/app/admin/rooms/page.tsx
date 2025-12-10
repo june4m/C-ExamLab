@@ -112,8 +112,8 @@ export default function AdminRoomsPage() {
 								roomId={room.code}
 								roomUuid={room.uuid}
 								roomName={room.name}
-								creatorName={room.createdBy}
-								creatorEmail=""
+								creatorName= {room.createdBy}
+								creatorEmail= ""
 								openTime={openDateTime.time}
 								openDate={openDateTime.date}
 								closeTime={closeDateTime.time}
