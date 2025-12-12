@@ -109,11 +109,20 @@ export default function QuestionPage({
 			})
 			setExecuteResult(result)
 
-			toast({
-				title: 'Code executed successfully',
-				description: 'Your code has been executed. Check the output below.',
-				variant: 'default'
-			})
+			// Check if there's a compilation error
+			if (result.error) {
+				toast({
+					title: 'Compilation failed',
+					description: result.error,
+					variant: 'destructive'
+				})
+			} else {
+				toast({
+					title: 'Code executed successfully',
+					description: 'Your code has been executed. Check the output below.',
+					variant: 'default'
+				})
+			}
 		} catch (error) {
 			toast({
 				title: 'Execution failed',
@@ -228,12 +237,11 @@ ${index < result.results.length - 1 ? '\n---\n' : ''}`
 	}
 
 	const executeOutput = formatExecuteOutput(executeResult)
-	const executeError =
-		executeMutation.error instanceof Error
-			? executeMutation.error.message
-			: executeMutation.error
-			? String(executeMutation.error)
-			: ''
+	const executeError = executeResult?.error || ''
+	const executeErrorCode = executeResult?.errorCode
+	const executeErrorLineNumber = executeResult?.lineNumber
+	const executeErrorColumnNumber = executeResult?.columnNumber
+	const executeErrorDetails = executeResult?.errorDetails
 
 	if (isLoading) {
 		return (
@@ -301,6 +309,10 @@ ${index < result.results.length - 1 ? '\n---\n' : ''}`
 				isSubmitting={submitMutation.isPending}
 				executeOutput={executeOutput}
 				executeError={executeError}
+				executeErrorCode={executeErrorCode}
+				executeErrorLineNumber={executeErrorLineNumber}
+				executeErrorColumnNumber={executeErrorColumnNumber}
+				executeErrorDetails={executeErrorDetails}
 			/>
 
 			{/* Test Results - Collapsible */}

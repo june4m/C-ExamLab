@@ -24,6 +24,10 @@ interface ExamQuestionViewProps {
 	testError?: string
 	executeOutput?: string
 	executeError?: string
+	executeErrorCode?: string
+	executeErrorLineNumber?: number
+	executeErrorColumnNumber?: number
+	executeErrorDetails?: string
 }
 
 const STORAGE_KEY_PREFIX = 'exam_code_'
@@ -51,7 +55,11 @@ export function ExamQuestionView({
 	testOutput = '',
 	testError = '',
 	executeOutput = '',
-	executeError = ''
+	executeError = '',
+	executeErrorCode,
+	executeErrorLineNumber,
+	executeErrorColumnNumber,
+	executeErrorDetails
 }: ExamQuestionViewProps) {
 	const storageKey = `${STORAGE_KEY_PREFIX}${question.questionId}`
 
@@ -167,7 +175,14 @@ export function ExamQuestionView({
 					<CardTitle>Your Solution</CardTitle>
 				</CardHeader>
 				<CardContent>
-					<CodeEditor value={code} onChange={handleCodeChange} height="500px" />
+					<CodeEditor
+						value={code}
+						onChange={handleCodeChange}
+						height="500px"
+						errorLineNumber={executeErrorLineNumber}
+						errorColumnNumber={executeErrorColumnNumber}
+						errorCode={executeErrorCode}
+					/>
 				</CardContent>
 			</Card>
 
@@ -239,6 +254,10 @@ export function ExamQuestionView({
 					output={executeOutput}
 					error={executeError}
 					isLoading={isExecuting}
+					errorCode={executeErrorCode}
+					lineNumber={executeErrorLineNumber}
+					columnNumber={executeErrorColumnNumber}
+					errorDetails={executeErrorDetails}
 				/>
 			)}
 

@@ -27,11 +27,9 @@ import {
 	ValidationError
 } from './validation'
 import { compilerRateLimiter, RateLimitError } from './rate-limiter'
-import {
-	CompilerErrorCode,
-	detectErrorCode,
-	createErrorMessage
-} from './error-codes'
+import { CompilerErrorCode } from './error-codes'
+import { detectErrorCode } from './error-parser'
+import { createErrorMessage } from './error-messages'
 
 type OptimizationLevel = 0 | 1 | 2 | 3 | 's'
 
@@ -601,6 +599,8 @@ export class CompilerService {
 					error: errorInfo.message,
 					errorCode: errorInfo.code,
 					errorDetails: errorInfo.details,
+					lineNumber: errorInfo.lineNumber,
+					columnNumber: errorInfo.columnNumber,
 					compilationTime,
 					executionTime: compilationTime
 				}
@@ -668,7 +668,9 @@ export class CompilerService {
 				success: false,
 				error: errorInfo.message,
 				errorCode: errorInfo.code,
-				errorDetails: errorInfo.details
+				errorDetails: errorInfo.details,
+				lineNumber: errorInfo.lineNumber,
+				columnNumber: errorInfo.columnNumber
 			}
 		} finally {
 			// Always remove from active compilations

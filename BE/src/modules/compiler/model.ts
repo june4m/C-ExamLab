@@ -14,6 +14,8 @@ export interface CompileResult {
 	error?: string
 	errorCode?: CompilerErrorCode
 	errorDetails?: string
+	lineNumber?: number // Line number where error occurred
+	columnNumber?: number // Column number where error occurred
 	executionTime?: number // milliseconds
 	compilationTime?: number // milliseconds
 	memoryUsed?: number // MB

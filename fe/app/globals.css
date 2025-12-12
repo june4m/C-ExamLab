@@ -191,3 +191,23 @@
 .slide-in-from-right-2 {
   --tw-enter-translate-x: 0.5rem;
 }
+
+/* Error highlighting styles for Monaco Editor */
+.error-line-highlight {
+  background-color: rgba(239, 68, 68, 0.1) !important;
+  border-left: 3px solid rgb(239, 68, 68);
+}
+
+.error-glyph-margin {
+  background-color: rgb(239, 68, 68);
+  width: 4px !important;
+}
+
+.error-column-highlight {
+  background-color: rgba(239, 68, 68, 0.3) !important;
+}
+
+.error-marker {
+  color: rgb(239, 68, 68);
+  font-weight: bold;
+}

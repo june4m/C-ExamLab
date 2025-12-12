@@ -30,9 +30,14 @@ interface JudgeResult {
 		expectedOutput: string
 		actualOutput?: string
 		error?: string
+		errorCode?: string
 		executionTime?: number
 	}>
 	error?: string
+	errorCode?: string
+	lineNumber?: number
+	columnNumber?: number
+	errorDetails?: string
 }
 
 export function useExecuteCode() {
@@ -56,7 +61,33 @@ export function useExecuteCode() {
 
 			// Check for compilation/judge error
 			if (data.error) {
-				throw new Error(data.error)
+				// Return error response with full error details
+				const errorResponse: ExecuteCodeResponse = {
+					results: [],
+					error: data.error,
+					errorCode: data.errorCode,
+					lineNumber: data.lineNumber,
+					columnNumber: data.columnNumber,
+					errorDetails: data.errorDetails
+				}
+				return errorResponse
+			}
+
+			// Check if all results have compilation errors (indicates compilation failed)
+			const hasCompilationError =
+				data.results.length > 0 &&
+				data.results.every(r => r.error && !r.actualOutput)
+
+			if (hasCompilationError && data.results[0]?.error) {
+				// Extract error info from first result
+				const firstError = data.results[0].error
+				const errorResponse: ExecuteCodeResponse = {
+					results: [],
+					error: firstError,
+					errorCode: data.results[0].errorCode || data.errorCode,
+					errorDetails: firstError
+				}
+				return errorResponse
 			}
 
 			// Transform backend response to frontend format

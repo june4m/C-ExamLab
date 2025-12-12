@@ -13,5 +13,10 @@ export interface ExecuteResult {
 
 export interface ExecuteCodeResponse {
 	results: ExecuteResult[]
+	error?: string
+	errorCode?: string
+	lineNumber?: number
+	columnNumber?: number
+	errorDetails?: string
 }
 
