@@ -8,6 +8,21 @@ import { wrapResponse } from '../../common/dtos/response'
 export const quiz = new Elysia({ prefix: '/quiz', tags: ['Quiz'] })
     .use(requireAuth)
 
+    // Get All Quizzes (User)
+    .get('/', quizService.getAllQuizzes, {
+        detail: { summary: 'Get All Quizzes', description: 'Get list of all active quizzes' },
+        response: {
+            200: ApiResponseSchema(t.Array(t.Object({
+                uuid: t.String(),
+                title: t.String(),
+                description: t.Union([t.String(), t.Null()]),
+                isActive: t.Number(),
+                createdAt: t.Union([t.String(), t.Date(), t.Null()])
+            }))),
+            500: ApiResponseSchema(t.Null())
+        }
+    })
+
     // Create Quiz (Admin Only)
     .post('/', quizService.createQuiz, {
         detail: { summary: 'Create Quiz', description: 'Create a new quiz with questions and answers' },

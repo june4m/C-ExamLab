@@ -19,6 +19,11 @@ export const quizService = {
         return wrapResponse({ uuid: quizUuid }, 201, 'Quiz created successfully')
     },
 
+    getAllQuizzes: async () => {
+        const quizzes = await quizRepository.findAllQuizzes()
+        return wrapResponse(quizzes, 200, 'All quizzes retrieved successfully')
+    },
+
     getQuiz: async ({ params, set }: any) => {
         const quiz = await quizRepository.findQuizById(params.id)
 

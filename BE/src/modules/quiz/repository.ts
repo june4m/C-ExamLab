@@ -63,5 +63,17 @@ export const quizRepository = {
             submittedAt: new Date()
         })
         return uuid
+    },
+
+    findAllQuizzes: async () => {
+        return await db.select({
+            uuid: quizzes.uuid,
+            title: quizzes.title,
+            description: quizzes.description,
+            isActive: quizzes.isActive,
+            createdAt: quizzes.createdAt
+        })
+            .from(quizzes)
+            .where(eq(quizzes.isActive, 1))
     }
 }
