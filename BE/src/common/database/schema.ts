@@ -7,7 +7,8 @@ import {
 	int,
 	tinyint,
 	mysqlEnum,
-	uniqueIndex
+	uniqueIndex,
+	double
 } from 'drizzle-orm/mysql-core'
 import { relations, sql } from 'drizzle-orm'
 
@@ -264,3 +265,98 @@ export const submissionDetailsRelations = relations(
 		})
 	})
 )
+
+// 9. quizzes table
+export const quizzes = mysqlTable('quizzes', {
+	uuid: char('uuid', { length: 36 })
+		.primaryKey()
+		.$defaultFn(() => crypto.randomUUID()),
+	title: varchar('title', { length: 200 }).notNull(),
+	description: text('description'),
+	isActive: tinyint('is_active').default(1).notNull(),
+	createdAt: datetime('created_at', { fsp: 6 }).default(
+		sql`CURRENT_TIMESTAMP(6)`
+	),
+	updatedAt: datetime('updated_at', { fsp: 6 }).default(
+		sql`CURRENT_TIMESTAMP(6)`
+	)
+})
+
+// 10. quiz_questions table
+export const quizQuestions = mysqlTable('quiz_questions', {
+	uuid: char('uuid', { length: 36 })
+		.primaryKey()
+		.$defaultFn(() => crypto.randomUUID()),
+	quizUuid: char('quiz_uuid', { length: 36 })
+		.notNull()
+		.references(() => quizzes.uuid),
+	content: text('content').notNull(),
+	points: double('points').default(1).notNull(),
+	type: varchar('type', { length: 50 }).default('MULTIPLE_CHOICE').notNull(),
+	order: int('order').default(0),
+	createdAt: datetime('created_at', { fsp: 6 }).default(
+		sql`CURRENT_TIMESTAMP(6)`
+	)
+})
+
+// 11. quiz_answers table
+export const quizAnswers = mysqlTable('quiz_answers', {
+	uuid: char('uuid', { length: 36 })
+		.primaryKey()
+		.$defaultFn(() => crypto.randomUUID()),
+	questionUuid: char('question_uuid', { length: 36 })
+		.notNull()
+		.references(() => quizQuestions.uuid),
+	content: text('content').notNull(),
+	isCorrect: tinyint('is_correct').default(0).notNull()
+})
+
+// 12. quiz_submissions table
+export const quizSubmissions = mysqlTable('quiz_submissions', {
+	uuid: char('uuid', { length: 36 })
+		.primaryKey()
+		.$defaultFn(() => crypto.randomUUID()),
+	quizUuid: char('quiz_uuid', { length: 36 })
+		.notNull()
+		.references(() => quizzes.uuid),
+	accountUuid: char('account_uuid', { length: 36 })
+		.notNull()
+		.references(() => accounts.uuid),
+	score: double('score').notNull(),
+	totalPoints: double('total_points').notNull(),
+	submittedAt: datetime('submitted_at', { fsp: 6 }).default(
+		sql`CURRENT_TIMESTAMP(6)`
+	)
+})
+
+// Relations for Quiz
+export const quizzesRelations = relations(quizzes, ({ many }) => ({
+	questions: many(quizQuestions),
+	submissions: many(quizSubmissions)
+}))
+
+export const quizQuestionsRelations = relations(quizQuestions, ({ one, many }) => ({
+	quiz: one(quizzes, {
+		fields: [quizQuestions.quizUuid],
+		references: [quizzes.uuid]
+	}),
+	answers: many(quizAnswers)
+}))
+
+export const quizAnswersRelations = relations(quizAnswers, ({ one }) => ({
+	question: one(quizQuestions, {
+		fields: [quizAnswers.questionUuid],
+		references: [quizQuestions.uuid]
+	})
+}))
+
+export const quizSubmissionsRelations = relations(quizSubmissions, ({ one }) => ({
+	quiz: one(quizzes, {
+		fields: [quizSubmissions.quizUuid],
+		references: [quizzes.uuid]
+	}),
+	account: one(accounts, {
+		fields: [quizSubmissions.accountUuid],
+		references: [accounts.uuid]
+	})
+}))

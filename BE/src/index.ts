@@ -11,6 +11,7 @@ import { room } from './modules/room'
 import { admin } from './modules/admin'
 import { question } from './modules/question'
 import { user } from './modules/user'
+import { quiz } from './modules/quiz'
 import { startRoomReminderJob } from './jobs/roomReminder.job'
 
 // Start cron jobs
@@ -37,6 +38,7 @@ const app = new Elysia()
 	.use(admin)
 	.use(question)
 	.use(user)
+	.use(quiz)
 	.listen({ port: 5000, hostname: '0.0.0.0' }, () => {
 		console.log('🚀 Server running: http://localhost:5000')
 		console.log('📘 Swagger docs: http://localhost:5000/swagger')
