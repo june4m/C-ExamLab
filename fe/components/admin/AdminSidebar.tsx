@@ -9,7 +9,8 @@ import {
 	Users,
 	LogOut,
 	User,
-	ChevronUp
+	ChevronUp,
+	FileText
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/auth.store'
@@ -37,6 +38,11 @@ const menuItems = [
 		title: 'Rooms',
 		href: '/admin/rooms',
 		icon: DoorOpen
+	},
+	{
+		title: 'Quizzes',
+		href: '/admin/quizzes',
+		icon: FileText
 	},
 	{
 		title: 'Users',
