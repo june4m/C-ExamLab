@@ -288,18 +288,26 @@ export default function CreateQuizPage() {
 												key={aIndex}
 												className="flex items-start gap-3 rounded-md border p-3"
 											>
-												<Checkbox
-													checked={answer.isCorrect}
-													onCheckedChange={checked =>
-														updateAnswer(
-															qIndex,
-															aIndex,
-															'isCorrect',
-															checked
-														)
-													}
-													className="mt-1"
-												/>
+												<div className="flex items-center gap-2 mt-1">
+													<Checkbox
+														checked={answer.isCorrect}
+														onCheckedChange={checked =>
+															updateAnswer(
+																qIndex,
+																aIndex,
+																'isCorrect',
+																checked
+															)
+														}
+														id={`correct-${qIndex}-${aIndex}`}
+													/>
+													<label
+														htmlFor={`correct-${qIndex}-${aIndex}`}
+														className="text-sm text-muted-foreground cursor-pointer whitespace-nowrap"
+													>
+														Correct
+													</label>
+												</div>
 												<Input
 													placeholder="Enter answer content"
 													value={answer.content}

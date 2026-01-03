@@ -19,7 +19,7 @@ export const CreateQuizDto = t.Object({
 })
 
 export const SubmitQuestionAnswerDto = t.Object({
-    questionUiid: t.String(),
+    questionUuid: t.String(),
     selectedAnswerUuids: t.Array(t.String())
 })
 
