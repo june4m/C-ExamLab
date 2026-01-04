@@ -142,11 +142,29 @@ export default function AdminQuizzesPage() {
 										})}
 									</span>
 								</div>
-								<Link href={`/admin/quizzes/${quiz.uuid}/preview`}>
-									<Button variant="outline" className="w-full">
-										View & Preview
-									</Button>
-								</Link>
+								<div className="flex flex-col gap-2">
+  <Link href={`/admin/quizzes/${quiz.uuid}/submissions`}>
+    <Button variant="outline" className="w-full">
+      View Submissions
+    </Button>
+  </Link>
+  <div className="flex gap-2">
+    <Link href={`/admin/quizzes/${quiz.uuid}/edit`}>
+      <Button variant="secondary" className="flex-1">Edit</Button>
+    </Link>
+    <Button
+      variant="destructive"
+      className="flex-1"
+      onClick={() => {
+        if(window.confirm('Are you sure you want to delete this quiz?')) {
+          alert('Delete quiz API not implemented yet!');
+        }
+      }}
+    >
+      Delete
+    </Button>
+  </div>
+</div>
 							</CardContent>
 						</Card>
 					))}
