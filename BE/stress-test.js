@@ -92,6 +92,285 @@ int main() {
 }`,
 		input: '17',
 		expectedOutput: '1'
+	},
+	{
+		name: 'Reverse String',
+		code: `#include <stdio.h>
+#include <string.h>
+int main() {
+    char str[100];
+    scanf("%s", str);
+    int len = strlen(str);
+    for(int i = len - 1; i >= 0; i--) {
+        printf("%c", str[i]);
+    }
+    return 0;
+}`,
+		input: 'hello',
+		expectedOutput: 'olleh'
+	},
+	{
+		name: 'GCD (Greatest Common Divisor)',
+		code: `#include <stdio.h>
+int gcd(int a, int b) {
+    if (b == 0) return a;
+    return gcd(b, a % b);
+}
+int main() {
+    int a, b;
+    scanf("%d %d", &a, &b);
+    printf("%d", gcd(a, b));
+    return 0;
+}`,
+		input: '48 18',
+		expectedOutput: '6'
+	},
+	{
+		name: 'Power Function',
+		code: `#include <stdio.h>
+long long power(int base, int exp) {
+    long long result = 1;
+    for(int i = 0; i < exp; i++) {
+        result *= base;
+    }
+    return result;
+}
+int main() {
+    int base, exp;
+    scanf("%d %d", &base, &exp);
+    printf("%lld", power(base, exp));
+    return 0;
+}`,
+		input: '2 10',
+		expectedOutput: '1024'
+	},
+	{
+		name: 'Find Maximum in Array',
+		code: `#include <stdio.h>
+int main() {
+    int n, max;
+    scanf("%d", &n);
+    scanf("%d", &max);
+    for(int i = 1; i < n; i++) {
+        int x;
+        scanf("%d", &x);
+        if(x > max) max = x;
+    }
+    printf("%d", max);
+    return 0;
+}`,
+		input: '5\n3 7 2 9 5',
+		expectedOutput: '9'
+	},
+	{
+		name: 'Count Digits',
+		code: `#include <stdio.h>
+int main() {
+    int n, count = 0;
+    scanf("%d", &n);
+    if(n == 0) {
+        printf("1");
+        return 0;
+    }
+    if(n < 0) n = -n;
+    while(n > 0) {
+        count++;
+        n /= 10;
+    }
+    printf("%d", count);
+    return 0;
+}`,
+		input: '12345',
+		expectedOutput: '5'
+	},
+	{
+		name: 'Palindrome Number',
+		code: `#include <stdio.h>
+int main() {
+    int n, original, reversed = 0;
+    scanf("%d", &n);
+    original = n;
+    while(n > 0) {
+        reversed = reversed * 10 + n % 10;
+        n /= 10;
+    }
+    printf("%d", original == reversed ? 1 : 0);
+    return 0;
+}`,
+		input: '121',
+		expectedOutput: '1'
+	},
+	{
+		name: 'Sum of Divisors',
+		code: `#include <stdio.h>
+int main() {
+    int n, sum = 0;
+    scanf("%d", &n);
+    for(int i = 1; i <= n; i++) {
+        if(n % i == 0) {
+            sum += i;
+        }
+    }
+    printf("%d", sum);
+    return 0;
+}`,
+		input: '12',
+		expectedOutput: '28'
+	},
+	{
+		name: 'Binary to Decimal',
+		code: `#include <stdio.h>
+int main() {
+    int binary, decimal = 0, base = 1;
+    scanf("%d", &binary);
+    while(binary > 0) {
+        int digit = binary % 10;
+        decimal += digit * base;
+        base *= 2;
+        binary /= 10;
+    }
+    printf("%d", decimal);
+    return 0;
+}`,
+		input: '1010',
+		expectedOutput: '10'
+	},
+	{
+		name: 'LCM (Least Common Multiple)',
+		code: `#include <stdio.h>
+int gcd(int a, int b) {
+    if (b == 0) return a;
+    return gcd(b, a % b);
+}
+int main() {
+    int a, b;
+    scanf("%d %d", &a, &b);
+    int lcm = (a * b) / gcd(a, b);
+    printf("%d", lcm);
+    return 0;
+}`,
+		input: '12 18',
+		expectedOutput: '36'
+	},
+	{
+		name: 'Count Vowels',
+		code: `#include <stdio.h>
+#include <string.h>
+int main() {
+    char str[100];
+    scanf("%s", str);
+    int count = 0;
+    for(int i = 0; i < strlen(str); i++) {
+        char c = str[i];
+        if(c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u' ||
+           c == 'A' || c == 'E' || c == 'I' || c == 'O' || c == 'U') {
+            count++;
+        }
+    }
+    printf("%d", count);
+    return 0;
+}`,
+		input: 'programming',
+		expectedOutput: '3'
+	},
+	{
+		name: 'Armstrong Number',
+		code: `#include <stdio.h>
+int power(int base, int exp) {
+    int result = 1;
+    for(int i = 0; i < exp; i++) {
+        result *= base;
+    }
+    return result;
+}
+int main() {
+    int n, original, sum = 0, digits = 0;
+    scanf("%d", &n);
+    original = n;
+    int temp = n;
+    while(temp > 0) {
+        digits++;
+        temp /= 10;
+    }
+    temp = n;
+    while(temp > 0) {
+        int digit = temp % 10;
+        sum += power(digit, digits);
+        temp /= 10;
+    }
+    printf("%d", sum == original ? 1 : 0);
+    return 0;
+}`,
+		input: '153',
+		expectedOutput: '1'
+	},
+	{
+		name: 'Bubble Sort',
+		code: `#include <stdio.h>
+int main() {
+    int n, arr[100];
+    scanf("%d", &n);
+    for(int i = 0; i < n; i++) {
+        scanf("%d", &arr[i]);
+    }
+    for(int i = 0; i < n-1; i++) {
+        for(int j = 0; j < n-i-1; j++) {
+            if(arr[j] > arr[j+1]) {
+                int temp = arr[j];
+                arr[j] = arr[j+1];
+                arr[j+1] = temp;
+            }
+        }
+    }
+    for(int i = 0; i < n; i++) {
+        printf("%d", arr[i]);
+        if(i < n-1) printf(" ");
+    }
+    return 0;
+}`,
+		input: '5\n5 2 8 1 9',
+		expectedOutput: '1 2 5 8 9'
+	},
+	{
+		name: 'Matrix Addition',
+		code: `#include <stdio.h>
+int main() {
+    int n, a[10][10], b[10][10];
+    scanf("%d", &n);
+    for(int i = 0; i < n; i++)
+        for(int j = 0; j < n; j++)
+            scanf("%d", &a[i][j]);
+    for(int i = 0; i < n; i++)
+        for(int j = 0; j < n; j++)
+            scanf("%d", &b[i][j]);
+    for(int i = 0; i < n; i++) {
+        for(int j = 0; j < n; j++) {
+            printf("%d", a[i][j] + b[i][j]);
+            if(j < n-1) printf(" ");
+        }
+        if(i < n-1) printf("\\n");
+    }
+    return 0;
+}`,
+		input: '2\n1 2\n3 4\n5 6\n7 8',
+		expectedOutput: '6 8\n10 12'
+	},
+	{
+		name: 'Perfect Number',
+		code: `#include <stdio.h>
+int main() {
+    int n, sum = 0;
+    scanf("%d", &n);
+    for(int i = 1; i < n; i++) {
+        if(n % i == 0) {
+            sum += i;
+        }
+    }
+    printf("%d", sum == n ? 1 : 0);
+    return 0;
+}`,
+		input: '28',
+		expectedOutput: '1'
 	}
 ]
 

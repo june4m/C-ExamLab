@@ -1,9 +1,11 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
-import { Filter, Plus, Loader2 } from 'lucide-react'
+import { Filter, Plus, Loader2, Search, X } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { RoomCard } from '@/components/ui/room-card'
 import { axiosGeneral } from '@/common/axios'
 
@@ -53,12 +55,31 @@ function formatDateTime(isoString: string) {
 
 export default function AdminRoomsPage() {
 	const { data: rooms, isLoading, error } = useGetRooms()
+	const [searchQuery, setSearchQuery] = useState('')
+
+	// Sort rooms by createdAt (newest first) and filter based on search query
+	const filteredRooms = rooms
+		?.slice() // Create a copy to avoid mutating original array
+		.sort(
+			(a, b) =>
+				new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+		)
+		.filter(room => {
+			if (!searchQuery.trim()) return true
+			const query = searchQuery.toLowerCase()
+			return (
+				room.name.toLowerCase().includes(query) ||
+				room.code.toLowerCase().includes(query)
+			)
+		})
 
 	return (
 		<div className="container mx-auto p-6">
 			{/* Header */}
 			<div className="mb-6 flex items-center justify-between">
-				<h1 className="text-2xl font-bold">Rooms | {rooms?.length || 0}</h1>
+				<h1 className="text-2xl font-bold">
+					Rooms | {filteredRooms?.length || 0}
+				</h1>
 				<div className="flex items-center gap-2">
 					<Button variant="outline" size="icon">
 						<Filter className="h-5 w-5" />
@@ -69,6 +90,29 @@ export default function AdminRoomsPage() {
 							Add New Room
 						</Button>
 					</Link>
+				</div>
+			</div>
+
+			{/* Search Bar */}
+			<div className="mb-6">
+				<div className="relative max-w-md">
+					<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+					<Input
+						placeholder="Search by room name or code..."
+						value={searchQuery}
+						onChange={e => setSearchQuery(e.target.value)}
+						className="pl-10 pr-10"
+					/>
+					{searchQuery && (
+						<Button
+							variant="ghost"
+							size="icon"
+							className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2"
+							onClick={() => setSearchQuery('')}
+						>
+							<X className="h-4 w-4" />
+						</Button>
+					)}
 				</div>
 			</div>
 
@@ -99,10 +143,31 @@ export default function AdminRoomsPage() {
 				</div>
 			)}
 
+			{/* No Search Results */}
+			{!isLoading &&
+				!error &&
+				rooms &&
+				rooms.length > 0 &&
+				filteredRooms?.length === 0 && (
+					<div className="rounded-md border border-dashed p-12 text-center">
+						<Search className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" />
+						<p className="text-muted-foreground">
+							No rooms found matching &quot;{searchQuery}&quot;
+						</p>
+						<Button
+							variant="outline"
+							className="mt-4"
+							onClick={() => setSearchQuery('')}
+						>
+							Clear search
+						</Button>
+					</div>
+				)}
+
 			{/* Rooms Grid */}
-			{!isLoading && !error && rooms && rooms.length > 0 && (
+			{!isLoading && !error && filteredRooms && filteredRooms.length > 0 && (
 				<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-					{rooms.map(room => {
+					{filteredRooms.map(room => {
 						const openDateTime = formatDateTime(room.openTime)
 						const closeDateTime = formatDateTime(room.closeTime)
 

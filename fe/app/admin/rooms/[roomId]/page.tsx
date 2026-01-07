@@ -61,13 +61,15 @@ import { useToast } from '@/hooks/use-toast'
 import {
 	useGetTestCases,
 	useUpdateTestCase,
-	useDeleteTestCase
+	useDeleteTestCase,
+	useCreateTestCase
 } from '@/service/admin/testcase.service'
+import { useCreateQuestion } from '@/service/admin/question.service'
 import { useGetAdminUsers } from '@/service/admin/user.service'
 import { useUpdateQuestion } from '@/service/admin/question.service'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
-import { Pencil, Trash2, Info, UserPlus, Check } from 'lucide-react'
+import { Pencil, Trash2, Info, UserPlus, Check, Plus } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { axiosGeneral } from '@/common/axios'
 
@@ -374,6 +376,15 @@ function QuestionCard({
 	const testCases = testCasesResponse?.data?.testcaseList || []
 	const updateTestCase = useUpdateTestCase()
 	const deleteTestCase = useDeleteTestCase()
+	const createTestCase = useCreateTestCase()
+
+	const [isAddTestCaseDialogOpen, setIsAddTestCaseDialogOpen] = useState(false)
+	const [newTestCase, setNewTestCase] = useState({
+		index: 1,
+		input: '',
+		output: '',
+		is_hidden: false
+	})
 
 	const [editingTestCase, setEditingTestCase] = useState<{
 		testcaseId: string
@@ -426,6 +437,37 @@ function QuestionCard({
 					toast({
 						title: 'Lỗi',
 						description: 'Không thể xóa test case',
+						variant: 'destructive'
+					})
+				}
+			}
+		)
+	}
+
+	const handleCreateTestCase = () => {
+		createTestCase.mutate(
+			{
+				questionId: question.uuid,
+				index: newTestCase.index,
+				input_path: newTestCase.input,
+				output_path: newTestCase.output,
+				is_hidden: newTestCase.is_hidden
+			},
+			{
+				onSuccess: () => {
+					toast({ title: 'Thành công', description: 'Đã tạo test case mới' })
+					setIsAddTestCaseDialogOpen(false)
+					setNewTestCase({
+						index: testCases.length + 2,
+						input: '',
+						output: '',
+						is_hidden: false
+					})
+				},
+				onError: () => {
+					toast({
+						title: 'Lỗi',
+						description: 'Không thể tạo test case',
 						variant: 'destructive'
 					})
 				}
@@ -603,10 +645,28 @@ function QuestionCard({
 			{/* TestCase Section */}
 			{isExpanded && (
 				<div className="border-t bg-muted/30 p-4">
-					<h5 className="font-medium text-sm mb-3 flex items-center gap-2">
-						<FileCode className="h-4 w-4" />
-						Test Cases ({testCases.length})
-					</h5>
+					<div className="flex items-center justify-between mb-3">
+						<h5 className="font-medium text-sm flex items-center gap-2">
+							<FileCode className="h-4 w-4" />
+							Test Cases ({testCases.length})
+						</h5>
+						<Button
+							size="sm"
+							onClick={() => {
+								setNewTestCase({
+									index: testCases.length + 1,
+									input: '',
+									output: '',
+									is_hidden: false
+								})
+								setIsAddTestCaseDialogOpen(true)
+							}}
+							className="bg-[#40E0D0] hover:bg-[#40E0D0]/90 text-white"
+						>
+							<Plus className="h-4 w-4 mr-1" />
+							Add Test Case
+						</Button>
+					</div>
 					{testCasesLoading ? (
 						<div className="flex justify-center py-4">
 							<Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -796,6 +856,101 @@ function QuestionCard({
 					)}
 				</div>
 			)}
+
+			{/* Add Test Case Dialog */}
+			<Dialog
+				open={isAddTestCaseDialogOpen}
+				onOpenChange={setIsAddTestCaseDialogOpen}
+			>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Add Test Case</DialogTitle>
+						<DialogDescription>
+							Create a new test case for question: {question.title}
+						</DialogDescription>
+					</DialogHeader>
+					<div className="grid gap-4 py-4">
+						<div className="grid grid-cols-2 gap-4">
+							<div className="grid gap-2">
+								<Label>Index</Label>
+								<Input
+									type="number"
+									value={newTestCase.index}
+									onChange={e =>
+										setNewTestCase({
+											...newTestCase,
+											index: Number.parseInt(e.target.value) || 1
+										})
+									}
+								/>
+							</div>
+							<div className="grid gap-2">
+								<Label>Hidden</Label>
+								<div className="flex items-center h-10">
+									<Switch
+										checked={newTestCase.is_hidden}
+										onCheckedChange={checked =>
+											setNewTestCase({
+												...newTestCase,
+												is_hidden: checked
+											})
+										}
+									/>
+									<span className="ml-2 text-sm text-muted-foreground">
+										{newTestCase.is_hidden ? 'Yes' : 'No'}
+									</span>
+								</div>
+							</div>
+						</div>
+						<div className="grid gap-2">
+							<Label>Input</Label>
+							<Textarea
+								value={newTestCase.input}
+								onChange={e =>
+									setNewTestCase({
+										...newTestCase,
+										input: e.target.value
+									})
+								}
+								placeholder="Enter test input..."
+								rows={4}
+							/>
+						</div>
+						<div className="grid gap-2">
+							<Label>Expected Output</Label>
+							<Textarea
+								value={newTestCase.output}
+								onChange={e =>
+									setNewTestCase({
+										...newTestCase,
+										output: e.target.value
+									})
+								}
+								placeholder="Enter expected output..."
+								rows={4}
+							/>
+						</div>
+					</div>
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={() => setIsAddTestCaseDialogOpen(false)}
+						>
+							Cancel
+						</Button>
+						<Button
+							onClick={handleCreateTestCase}
+							disabled={createTestCase.isPending}
+							className="bg-[#40E0D0] hover:bg-[#40E0D0]/90 text-white"
+						>
+							{createTestCase.isPending && (
+								<Loader2 className="h-4 w-4 animate-spin mr-2" />
+							)}
+							Create Test Case
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</div>
 	)
 }
@@ -821,8 +976,19 @@ export default function AdminRoomDetailPage() {
 		useGetRoomScores(roomId)
 	const { mutate: updateQuestion, isPending: isUpdatingQuestion } =
 		useUpdateQuestion()
+	const { mutate: createQuestion, isPending: isCreatingQuestion } =
+		useCreateQuestion()
 
 	const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+	const [isAddQuestionDialogOpen, setIsAddQuestionDialogOpen] = useState(false)
+	const [newQuestionForm, setNewQuestionForm] = useState({
+		title: '',
+		descriptionPath: '',
+		score: 10,
+		timeLimit: 1000,
+		memoryLimit: 256,
+		order: 1
+	})
 	const [isAddStudentDialogOpen, setIsAddStudentDialogOpen] = useState(false)
 	const [studentSearchQuery, setStudentSearchQuery] = useState('')
 	const [selectedStudents, setSelectedStudents] = useState<
@@ -1104,12 +1270,31 @@ export default function AdminRoomDetailPage() {
 
 				<TabsContent value="questions">
 					<Card>
-						<CardHeader>
-							<CardTitle>Question list</CardTitle>
-							<CardDescription>
-								Manage questions and test cases in this room (
-								{questions?.length || 0} questions)
-							</CardDescription>
+						<CardHeader className="flex flex-row items-center justify-between">
+							<div>
+								<CardTitle>Question list</CardTitle>
+								<CardDescription>
+									Manage questions and test cases in this room (
+									{questions?.length || 0} questions)
+								</CardDescription>
+							</div>
+							<Button
+								onClick={() => {
+									setNewQuestionForm({
+										title: '',
+										descriptionPath: '',
+										score: 10,
+										timeLimit: 1000,
+										memoryLimit: 256,
+										order: (questions?.length || 0) + 1
+									})
+									setIsAddQuestionDialogOpen(true)
+								}}
+								className="bg-[#40E0D0] hover:bg-[#40E0D0]/90 text-white"
+							>
+								<Plus className="h-4 w-4 mr-2" />
+								Add Question
+							</Button>
 						</CardHeader>
 						<CardContent>
 							{questionsLoading ? (
@@ -1977,6 +2162,171 @@ export default function AdminRoomDetailPage() {
 							)}
 							Add {selectedStudents.length > 0 ? selectedStudents.length : ''}{' '}
 							student{selectedStudents.length !== 1 ? 's' : ''}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Add Question Dialog */}
+			<Dialog
+				open={isAddQuestionDialogOpen}
+				onOpenChange={open => {
+					setIsAddQuestionDialogOpen(open)
+					if (!open) {
+						setNewQuestionForm({
+							title: '',
+							descriptionPath: '',
+							score: 10,
+							timeLimit: 1000,
+							memoryLimit: 256,
+							order: 1
+						})
+					}
+				}}
+			>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Add Question</DialogTitle>
+						<DialogDescription>
+							Create a new question for this room
+						</DialogDescription>
+					</DialogHeader>
+					<div className="grid gap-4 py-4">
+						<div className="grid gap-2">
+							<Label>Title *</Label>
+							<Input
+								value={newQuestionForm.title}
+								onChange={e =>
+									setNewQuestionForm({
+										...newQuestionForm,
+										title: e.target.value
+									})
+								}
+								placeholder="Enter question title"
+							/>
+						</div>
+						<div className="grid gap-2">
+							<Label>Description path</Label>
+							<Input
+								value={newQuestionForm.descriptionPath}
+								onChange={e =>
+									setNewQuestionForm({
+										...newQuestionForm,
+										descriptionPath: e.target.value
+									})
+								}
+								placeholder="/questions/description.md"
+							/>
+						</div>
+						<div className="grid grid-cols-2 gap-4">
+							<div className="grid gap-2">
+								<Label>Score</Label>
+								<Input
+									type="number"
+									value={newQuestionForm.score}
+									onChange={e =>
+										setNewQuestionForm({
+											...newQuestionForm,
+											score: Number.parseInt(e.target.value) || 0
+										})
+									}
+								/>
+							</div>
+							<div className="grid gap-2">
+								<Label>Order</Label>
+								<Input
+									type="number"
+									value={newQuestionForm.order}
+									onChange={e =>
+										setNewQuestionForm({
+											...newQuestionForm,
+											order: Number.parseInt(e.target.value) || 1
+										})
+									}
+								/>
+							</div>
+						</div>
+						<div className="grid grid-cols-2 gap-4">
+							<div className="grid gap-2">
+								<Label>Time Limit (ms)</Label>
+								<Input
+									type="number"
+									value={newQuestionForm.timeLimit}
+									onChange={e =>
+										setNewQuestionForm({
+											...newQuestionForm,
+											timeLimit: Number.parseInt(e.target.value) || 1000
+										})
+									}
+								/>
+							</div>
+							<div className="grid gap-2">
+								<Label>Memory Limit (KB)</Label>
+								<Input
+									type="number"
+									value={newQuestionForm.memoryLimit}
+									onChange={e =>
+										setNewQuestionForm({
+											...newQuestionForm,
+											memoryLimit: Number.parseInt(e.target.value) || 256
+										})
+									}
+								/>
+							</div>
+						</div>
+					</div>
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={() => setIsAddQuestionDialogOpen(false)}
+						>
+							Cancel
+						</Button>
+						<Button
+							onClick={() => {
+								createQuestion(
+									{
+										title: newQuestionForm.title,
+										descriptionPath: newQuestionForm.descriptionPath,
+										score: newQuestionForm.score,
+										timeLimit: newQuestionForm.timeLimit,
+										memoryLimit: newQuestionForm.memoryLimit,
+										order: newQuestionForm.order,
+										roomId: roomId
+									},
+									{
+										onSuccess: () => {
+											toast({
+												title: 'Thành công',
+												description: 'Đã tạo câu hỏi mới'
+											})
+											setIsAddQuestionDialogOpen(false)
+											setNewQuestionForm({
+												title: '',
+												descriptionPath: '',
+												score: 10,
+												timeLimit: 1000,
+												memoryLimit: 256,
+												order: (questions?.length || 0) + 2
+											})
+										},
+										onError: (err: Error) => {
+											toast({
+												title: 'Lỗi',
+												description: err.message || 'Không thể tạo câu hỏi',
+												variant: 'destructive'
+											})
+										}
+									}
+								)
+							}}
+							disabled={isCreatingQuestion || !newQuestionForm.title.trim()}
+							className="bg-[#40E0D0] hover:bg-[#40E0D0]/90 text-white"
+						>
+							{isCreatingQuestion && (
+								<Loader2 className="h-4 w-4 animate-spin mr-2" />
+							)}
+							Create Question
 						</Button>
 					</DialogFooter>
 				</DialogContent>

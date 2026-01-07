@@ -4,7 +4,6 @@ import type { Logger } from 'drizzle-orm'
 import { DATABASE_URL, NODE_ENV } from './env'
 import * as schema from '../common/database/schema'
 
-// Custom logger for better query debugging
 class DatabaseLogger implements Logger {
 	logQuery(query: string, params: unknown[]): void {
 		if (NODE_ENV === 'development') {

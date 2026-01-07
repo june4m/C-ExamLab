@@ -57,8 +57,8 @@ export const questionService = {
 			return wrapResponse(null, 404, '', 'Room not found')
 		}
 
-		// Check if user is owner of the room
-		if (room.createdBy !== user.userId) {
+		// Admins can bypass ownership check
+		if (!user.isAdmin && room.createdBy !== user.userId) {
 			set.status = 403
 			return wrapResponse(
 				null,
@@ -232,8 +232,8 @@ export const questionService = {
 			return wrapResponse(null, 404, '', 'Question not found')
 		}
 
-		// Check if user is owner of the room
-		if (questionData.roomCreatedBy !== user.userId) {
+		// Admins can bypass ownership check
+		if (!user.isAdmin && questionData.roomCreatedBy !== user.userId) {
 			set.status = 403
 			return wrapResponse(
 				null,
@@ -253,7 +253,8 @@ export const questionService = {
 				set.status = 404
 				return wrapResponse(null, 404, '', 'New room not found')
 			}
-			if (newRoom.createdBy !== user.userId) {
+			// Admins can bypass ownership check for new room
+			if (!user.isAdmin && newRoom.createdBy !== user.userId) {
 				set.status = 403
 				return wrapResponse(
 					null,

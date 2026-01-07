@@ -84,6 +84,22 @@ export const userService = {
 
 		const { roomCode } = body as JoinRoomDto
 
+		// Check if user is banned
+		const [userAccount] = await db
+			.select({ isBanned: accounts.isBanned })
+			.from(accounts)
+			.where(eq(accounts.uuid, user.userId))
+
+		if (userAccount?.isBanned === 1) {
+			set.status = 403
+			return wrapResponse(
+				null,
+				403,
+				'',
+				'Your account has been banned. You cannot continue using the system. Please contact the administrator for support.'
+			)
+		}
+
 		// Find room by code
 		const [room] = await db
 			.select(selectRoomColumns)
@@ -257,6 +273,22 @@ export const userService = {
 
 		const { roomId } = params
 
+		// Check if user is banned
+		const [userAccount] = await db
+			.select({ isBanned: accounts.isBanned })
+			.from(accounts)
+			.where(eq(accounts.uuid, user.userId))
+
+		if (userAccount?.isBanned === 1) {
+			set.status = 403
+			return wrapResponse(
+				null,
+				403,
+				'',
+				'Your account has been banned. You cannot continue using the system. Please contact the administrator for support.'
+			)
+		}
+
 		// Check if student is a participant of this room
 		const [participant] = await db
 			.select()
@@ -310,6 +342,22 @@ export const userService = {
 		}
 
 		const { roomId, questionId, answerCode } = body as SubmitQuestionDto
+
+		// Check if user is banned
+		const [userAccount] = await db
+			.select({ isBanned: accounts.isBanned })
+			.from(accounts)
+			.where(eq(accounts.uuid, user.userId))
+
+		if (userAccount?.isBanned === 1) {
+			set.status = 403
+			return wrapResponse(
+				null,
+				403,
+				'',
+				'Your account has been banned. You cannot continue using the system. Please contact the administrator for support.'
+			)
+		}
 
 		// Check if student is a participant of this room
 		const [participant] = await db

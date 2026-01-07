@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, DoorOpen, User } from 'lucide-react'
+import { LayoutDashboard, DoorOpen, User, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { LogoutButton } from '@/components/auth/LogoutButton'
 
@@ -16,6 +16,11 @@ const menuItems = [
 		title: 'Rooms',
 		href: '/rooms',
 		icon: DoorOpen,
+	},
+	{
+		title: 'Quizzes',
+		href: '/quizzes',
+		icon: FileText,
 	},
 	{
 		title: 'Profile',

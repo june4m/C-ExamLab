@@ -231,7 +231,7 @@ export default function AdminDashboardPage() {
 			.forEach(room => {
 				activities.push({
 					type: 'room',
-					message: `Tạo phòng thi mới "${room.name}"`,
+					message: `Created new exam room "${room.name}"`,
 					time: formatRelativeTime(room.createdAt),
 					color: 'bg-purple-500'
 				})
@@ -248,10 +248,10 @@ export default function AdminDashboardPage() {
 			.forEach(question => {
 				const roomName =
 					roomsData?.data?.find(r => r.uuid === question.roomId)?.name ||
-					'phòng thi'
+					'exam room'
 				activities.push({
 					type: 'question',
-					message: `Thêm câu hỏi mới vào "${roomName}"`,
+					message: `Added new question to "${roomName}"`,
 					time: formatRelativeTime(question.createdAt),
 					color: 'bg-blue-500'
 				})
@@ -266,8 +266,8 @@ export default function AdminDashboardPage() {
 				const roomName = query.data.data.roomName
 				activities.push({
 					type: 'exam',
-					message: `Phòng thi "${roomName}" đã bắt đầu`,
-					time: 'Đang diễn ra',
+					message: `Exam room "${roomName}" has started`,
+					time: 'Ongoing',
 					color: 'bg-green-500'
 				})
 			}
@@ -276,8 +276,8 @@ export default function AdminDashboardPage() {
 		// Sort by time (most recent first) and limit to 4
 		return activities
 			.sort((a, b) => {
-				if (a.time === 'Đang diễn ra') return -1
-				if (b.time === 'Đang diễn ra') return 1
+				if (a.time === 'Ongoing') return -1
+				if (b.time === 'Ongoing') return 1
 				return 0
 			})
 			.slice(0, 4)
@@ -297,7 +297,7 @@ export default function AdminDashboardPage() {
 			<div className="mb-6">
 				<h1 className="text-2xl font-bold">Dashboard</h1>
 				<p className="text-muted-foreground">
-					Tổng quan hệ thống quản lý phòng thi
+					Overview of the exam management system
 				</p>
 			</div>
 
@@ -320,7 +320,7 @@ export default function AdminDashboardPage() {
 									{dashboardStats.totalRooms}
 								</div>
 								<p className="text-xs text-muted-foreground">
-									{dashboardStats.activeExams} phòng đang hoạt động
+									{dashboardStats.activeExams} active exam rooms
 								</p>
 							</>
 						)}
@@ -373,7 +373,7 @@ export default function AdminDashboardPage() {
 									{dashboardStats.totalStudents}
 								</div>
 								<p className="text-xs text-muted-foreground">
-									Đã đăng ký tham gia thi
+									Registered candidates
 								</p>
 							</>
 						)}
@@ -397,7 +397,7 @@ export default function AdminDashboardPage() {
 									{dashboardStats.activeExams}
 								</div>
 								<p className="text-xs text-muted-foreground">
-									Đang có thí sinh làm bài
+									Rooms currently running exams
 								</p>
 							</>
 						)}

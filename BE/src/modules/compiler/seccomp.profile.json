@@ -1,0 +1,150 @@
+{
+	"defaultAction": "SCMP_ACT_ERRNO",
+	"defaultErrnoRet": 1,
+	"archMap": [
+		{
+			"architecture": "SCMP_ARCH_X86_64",
+			"subArchitectures": ["SCMP_ARCH_X86", "SCMP_ARCH_X32"]
+		}
+	],
+	"syscalls": [
+		{
+			"names": [
+				"arch_prctl",
+				"brk",
+				"close",
+				"exit",
+				"exit_group",
+				"fstat",
+				"fstatfs",
+				"mmap",
+				"mprotect",
+				"munmap",
+				"open",
+				"openat",
+				"openat2",
+				"pread64",
+				"read",
+				"readv",
+				"rt_sigaction",
+				"rt_sigprocmask",
+				"rt_sigreturn",
+				"stat",
+				"statfs",
+				"statx",
+				"write",
+				"writev",
+				"lseek",
+				"fcntl",
+				"ioctl",
+				"getpid",
+				"getuid",
+				"geteuid",
+				"getgid",
+				"getegid",
+				"getgroups",
+				"getrandom",
+				"access",
+				"faccessat",
+				"faccessat2",
+				"prctl",
+				"set_tid_address",
+				"set_robust_list",
+				"futex",
+				"futex_waitv",
+				"sigaltstack",
+				"sigreturn",
+				"rseq",
+				"prlimit64",
+				"getrlimit",
+				"uname",
+				"getcwd",
+				"getdents64",
+				"getdents",
+				"lstat"
+			],
+			"action": "SCMP_ACT_ALLOW",
+			"comment": "Minimal syscalls for GCC compilation and program execution"
+		},
+		{
+			"names": ["clone", "clone3", "fork", "vfork"],
+			"action": "SCMP_ACT_ERRNO",
+			"errnoRet": 1,
+			"comment": "Block process spawning"
+		},
+		{
+			"names": [
+				"execve",
+				"execveat",
+				"execl",
+				"execlp",
+				"execle",
+				"execv",
+				"execvp"
+			],
+			"action": "SCMP_ACT_ERRNO",
+			"errnoRet": 1,
+			"comment": "Block execution of other programs"
+		},
+		{
+			"names": [
+				"socket",
+				"socketpair",
+				"socketcall",
+				"connect",
+				"bind",
+				"listen",
+				"accept",
+				"accept4"
+			],
+			"action": "SCMP_ACT_ERRNO",
+			"errnoRet": 1,
+			"comment": "Block networking"
+		},
+		{
+			"names": ["ptrace", "process_vm_readv", "process_vm_writev"],
+			"action": "SCMP_ACT_ERRNO",
+			"errnoRet": 1,
+			"comment": "Block process tracing"
+		},
+		{
+			"names": ["mount", "umount", "umount2"],
+			"action": "SCMP_ACT_ERRNO",
+			"errnoRet": 1,
+			"comment": "Block mount operations"
+		},
+		{
+			"names": [
+				"chmod",
+				"fchmod",
+				"fchmodat",
+				"chown",
+				"fchown",
+				"fchownat",
+				"lchown"
+			],
+			"action": "SCMP_ACT_ERRNO",
+			"errnoRet": 1,
+			"comment": "Block permission changes"
+		},
+		{
+			"names": [
+				"unlink",
+				"unlinkat",
+				"rename",
+				"renameat",
+				"renameat2",
+				"mkdir",
+				"mkdirat",
+				"rmdir",
+				"link",
+				"linkat",
+				"symlink",
+				"symlinkat"
+			],
+			"action": "SCMP_ACT_ERRNO",
+			"errnoRet": 1,
+			"comment": "Block file system modifications"
+		}
+	]
+}
