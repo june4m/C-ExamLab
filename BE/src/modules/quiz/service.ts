@@ -71,7 +71,7 @@ export const quizService = {
             totalPossiblePoints += question.points
 
             // Find user's answer for this question
-            const userAnswer = userAnswers.find(ua => ua.questionUiid === question.uuid)
+            const userAnswer = userAnswers.find(ua => ua.questionUuid === question.uuid)
             const selectedIds = new Set(userAnswer ? userAnswer.selectedAnswerUuids : [])
 
             const correctAnswers = question.answers.filter(a => a.isCorrect === 1)
