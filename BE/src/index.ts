@@ -41,5 +41,5 @@ const app = new Elysia()
 	.use(quiz)
 	.listen({ port: 5000, hostname: '0.0.0.0' }, () => {
 		console.log('🚀 Server running: http://localhost:5000')
-		console.log('📘 Swagger docs: http://localhost:5000/swagger')
+		console.log('📘 Swagger docs: http://localhost:5000/swagger') //swagger
 	})

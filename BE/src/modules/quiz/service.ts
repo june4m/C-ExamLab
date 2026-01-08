@@ -1,6 +1,6 @@
 import { quizRepository } from './repository'
 import { wrapResponse } from '../../common/dtos/response'
-import type { CreateQuizDto, SubmitQuizDto } from './model'
+import type { CreateQuizDto, SubmitQuizDto, ImportQuizQuestionsDto, ImportQuizQuestionsResponse, CreateEmptyQuizDto, AddQuestionDto, CopyQuestionsDto, CopyQuestionsResponse } from './model'
 
 export const quizService = {
     createQuiz: async ({ body, set }: any) => {
@@ -121,5 +121,112 @@ export const quizService = {
             percentage: Number(percentage.toFixed(2)),
             grade
         }, 200, 'Quiz submitted successfully')
+    },
+
+    importQuizQuestions: async ({ body, set }: any) => {
+        const data = body as ImportQuizQuestionsDto
+        const errors: { index: number; reason: string }[] = []
+        let imported = 0
+        let skipped = 0
+
+        // Validate: either quizUuid or title must be provided
+        if (!data.quizUuid && !data.title) {
+            set.status = 400
+            return wrapResponse(null, 400, '', 'Either quizUuid (to add to existing quiz) or title (to create new quiz) is required')
+        }
+
+        // Validate each question has at least one correct answer
+        for (let i = 0; i < data.questions.length; i++) {
+            const q = data.questions[i]
+            const correctCount = q.answers.filter(a => a.isCorrect).length
+            if (correctCount === 0) {
+                errors.push({ index: i, reason: 'Must have at least one correct answer' })
+                skipped++
+            }
+        }
+
+        // If all questions are invalid, return error
+        if (skipped === data.questions.length) {
+            set.status = 400
+            return wrapResponse(null, 400, '', 'All questions are invalid. Each question must have at least one correct answer.')
+        }
+
+        try {
+            const result = await quizRepository.importQuestions(data, errors)
+            imported = result.imported
+
+            const response: ImportQuizQuestionsResponse = {
+                quizUuid: result.quizUuid,
+                imported,
+                skipped,
+                errors
+            }
+
+            return wrapResponse(response, 201, `Successfully imported ${imported} question(s)`)
+        } catch (error: any) {
+            if (error.message === 'Quiz not found') {
+                set.status = 404
+                return wrapResponse(null, 404, '', 'Quiz not found')
+            }
+            throw error
+        }
+    },
+
+    // Tạo quiz trống (chỉ title, description)
+    createEmptyQuiz: async ({ body, set }: any) => {
+        const data = body as CreateEmptyQuizDto
+        const quizUuid = await quizRepository.createEmptyQuiz(data)
+        return wrapResponse({ uuid: quizUuid }, 201, 'Quiz created successfully')
+    },
+
+    // Thêm 1 câu hỏi vào quiz
+    addQuestion: async ({ params, body, set }: any) => {
+        const { id: quizUuid } = params
+        const data = body as AddQuestionDto
+
+        // Validate: at least one correct answer
+        const correctCount = data.answers.filter(a => a.isCorrect).length
+        if (correctCount === 0) {
+            set.status = 400
+            return wrapResponse(null, 400, '', 'Question must have at least one correct answer')
+        }
+
+        try {
+            const questionUuid = await quizRepository.addQuestion(quizUuid, data)
+            return wrapResponse({ questionUuid }, 201, 'Question added successfully')
+        } catch (error: any) {
+            if (error.message === 'Quiz not found') {
+                set.status = 404
+                return wrapResponse(null, 404, '', 'Quiz not found')
+            }
+            throw error
+        }
+    },
+
+    // Copy câu hỏi từ quiz khác
+    copyQuestions: async ({ params, body, set }: any) => {
+        const { id: targetQuizUuid } = params
+        const data = body as CopyQuestionsDto
+
+        try {
+            const result = await quizRepository.copyQuestionsFromQuiz(targetQuizUuid, data.sourceQuizUuid, data.questionUuids)
+
+            const response: CopyQuestionsResponse = {
+                copied: result.copied,
+                skipped: result.skipped
+            }
+
+            return wrapResponse(response, 201, `Successfully copied ${result.copied} question(s)`)
+        } catch (error: any) {
+            if (error.message === 'Target quiz not found') {
+                set.status = 404
+                return wrapResponse(null, 404, '', 'Target quiz not found')
+            }
+            if (error.message === 'Source quiz not found') {
+                set.status = 404
+                return wrapResponse(null, 404, '', 'Source quiz not found')
+            }
+            throw error
+        }
     }
 }
