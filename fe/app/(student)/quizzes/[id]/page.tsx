@@ -2,7 +2,17 @@
 
 import { useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { ArrowLeft, Send, Loader2, AlertCircle, CheckCircle2, Trophy } from 'lucide-react'
+import {
+	ArrowLeft,
+	Send,
+	Loader2,
+	AlertCircle,
+	CheckCircle2,
+	Trophy,
+	RotateCcw,
+	ListChecks,
+	ToggleLeft
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
 	Card,
@@ -12,7 +22,9 @@ import {
 	CardTitle
 } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Badge } from '@/components/ui/badge'
+import { Label } from '@/components/ui/label'
 import { useGetQuiz, useSubmitQuiz } from '@/service/student/quiz.service'
 import type { SubmitBody } from '@/interface/admin/quiz.interface'
 
@@ -24,7 +36,9 @@ export default function TakeQuizPage() {
 	const { data: quiz, isLoading, error } = useGetQuiz(quizId)
 	const { mutate: submitQuiz, isPending: isSubmitting } = useSubmitQuiz()
 
-	const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string[]>>({})
+	const [selectedAnswers, setSelectedAnswers] = useState<
+		Record<string, string[]>
+	>({})
 	const [submitted, setSubmitted] = useState(false)
 	const [result, setResult] = useState<{
 		score: number
@@ -33,10 +47,30 @@ export default function TakeQuizPage() {
 		grade: string
 	} | null>(null)
 
-	const handleAnswerChange = (questionUuid: string, answerUuid: string, checked: boolean) => {
+	const handleRetry = () => {
+		setSelectedAnswers({})
+		setSubmitted(false)
+		setResult(null)
+	}
+
+	const handleAnswerChange = (
+		questionUuid: string,
+		answerUuid: string,
+		checked: boolean,
+		isSingleChoice: boolean = false
+	) => {
 		if (submitted) return // Prevent changes after submission
 
 		setSelectedAnswers(prev => {
+			// For single choice (TRUE_FALSE), replace the selection
+			if (isSingleChoice) {
+				return {
+					...prev,
+					[questionUuid]: checked ? [answerUuid] : []
+				}
+			}
+
+			// For multiple choice, toggle the selection
 			const current = prev[questionUuid] || []
 			if (checked) {
 				return {
@@ -50,6 +84,15 @@ export default function TakeQuizPage() {
 				}
 			}
 		})
+	}
+
+	// Helper to get question type label and check if single choice
+	const getQuestionTypeInfo = (type: string) => {
+		const normalizedType = type?.toUpperCase() || 'MULTIPLE_CHOICE'
+		if (normalizedType === 'TRUE_FALSE' || normalizedType === 'TRUEFALSE') {
+			return { label: 'True / False', isSingleChoice: true, icon: ToggleLeft }
+		}
+		return { label: 'Multiple Choice', isSingleChoice: false, icon: ListChecks }
 	}
 
 	const handleSubmit = () => {
@@ -92,7 +135,11 @@ export default function TakeQuizPage() {
 				<div className="rounded-md bg-destructive/10 p-4 text-center text-destructive">
 					{error?.message || 'Failed to load quiz'}
 				</div>
-				<Button variant="outline" className="mt-4" onClick={() => router.back()}>
+				<Button
+					variant="outline"
+					className="mt-4"
+					onClick={() => router.back()}
+				>
 					<ArrowLeft className="mr-2 h-4 w-4" />
 					Go Back
 				</Button>
@@ -109,11 +156,7 @@ export default function TakeQuizPage() {
 		<div className="container mx-auto max-w-4xl p-6">
 			{/* Header */}
 			<div className="mb-6">
-				<Button
-					variant="ghost"
-					onClick={() => router.back()}
-					className="mb-4"
-				>
+				<Button variant="ghost" onClick={() => router.back()} className="mb-4">
 					<ArrowLeft className="mr-2 h-4 w-4" />
 					Back
 				</Button>
@@ -144,7 +187,9 @@ export default function TakeQuizPage() {
 							</div>
 							<div>
 								<p className="text-sm text-muted-foreground">Percentage</p>
-								<p className="text-2xl font-bold">{result.percentage.toFixed(1)}%</p>
+								<p className="text-2xl font-bold">
+									{result.percentage.toFixed(1)}%
+								</p>
 							</div>
 							<div>
 								<p className="text-sm text-muted-foreground">Grade</p>
@@ -160,77 +205,149 @@ export default function TakeQuizPage() {
 								</div>
 							</div>
 						</div>
+						<div className="pt-4 border-t">
+							<Button
+								onClick={handleRetry}
+								variant="outline"
+								className="w-full sm:w-auto"
+							>
+								<RotateCcw className="mr-2 h-4 w-4" />
+								Retry Quiz
+							</Button>
+						</div>
 					</CardContent>
 				</Card>
 			)}
 
 			{/* Questions */}
 			<div className="space-y-6 mb-6">
-				{questions.map((question, index) => (
-					<Card key={question.uuid}>
-						<CardHeader>
-							<CardTitle className="text-lg">
-								Question {index + 1}
-								{question.points && (
-									<span className="ml-2 text-sm font-normal text-muted-foreground">
-										({question.points} point{question.points !== 1 ? 's' : ''})
-									</span>
-								)}
-							</CardTitle>
-							<CardDescription className="text-base text-foreground">
-								{question.content}
-							</CardDescription>
-						</CardHeader>
-						<CardContent className="space-y-3">
-							{question.answers && question.answers.length > 0 ? (
-								question.answers.map((answer) => {
-									const isSelected =
-										selectedAnswers[question.uuid]?.includes(answer.uuid) || false
-									return (
-										<div
-											key={answer.uuid}
-											className={`flex items-start gap-3 rounded-md border p-3 transition-colors ${
-												submitted
-													? 'opacity-60 cursor-not-allowed'
-													: 'hover:bg-accent cursor-pointer'
-											}`}
-											onClick={() => {
+				{questions.map((question, index) => {
+					const typeInfo = getQuestionTypeInfo(question.type)
+					const TypeIcon = typeInfo.icon
+
+					return (
+						<Card key={question.uuid}>
+							<CardHeader>
+								<div className="flex items-center justify-between">
+									<CardTitle className="text-lg">
+										Question {index + 1}
+										{question.points && (
+											<span className="ml-2 text-sm font-normal text-muted-foreground">
+												({question.points} point
+												{question.points !== 1 ? 's' : ''})
+											</span>
+										)}
+									</CardTitle>
+									<Badge variant="outline" className="flex items-center gap-1">
+										<TypeIcon className="h-3 w-3" />
+										{typeInfo.label}
+									</Badge>
+								</div>
+								<CardDescription className="text-base text-foreground">
+									{question.content}
+								</CardDescription>
+							</CardHeader>
+							<CardContent className="space-y-3">
+								{question.answers && question.answers.length > 0 ? (
+									typeInfo.isSingleChoice ? (
+										// Single choice (True/False) - use Radio
+										<RadioGroup
+											value={selectedAnswers[question.uuid]?.[0] || ''}
+											onValueChange={value => {
 												if (!submitted) {
-													handleAnswerChange(
-														question.uuid,
-														answer.uuid,
-														!isSelected
-													)
+													handleAnswerChange(question.uuid, value, true, true)
 												}
 											}}
+											disabled={submitted}
 										>
-											<Checkbox
-												checked={isSelected}
-												onCheckedChange={checked =>
-													!submitted &&
-													handleAnswerChange(
-														question.uuid,
-														answer.uuid,
-														!!checked
-													)
-												}
-												disabled={submitted}
-												className="mt-1"
-											/>
-											<label className="flex-1 cursor-pointer">
-												{answer.content}
-											</label>
-										</div>
+											{question.answers.map(answer => (
+												<div
+													key={answer.uuid}
+													className={`flex items-center gap-3 rounded-md border p-3 transition-colors ${
+														submitted
+															? 'opacity-60 cursor-not-allowed'
+															: 'hover:bg-accent cursor-pointer'
+													}`}
+													onClick={() => {
+														if (!submitted) {
+															handleAnswerChange(
+																question.uuid,
+																answer.uuid,
+																true,
+																true
+															)
+														}
+													}}
+												>
+													<RadioGroupItem
+														value={answer.uuid}
+														id={answer.uuid}
+														disabled={submitted}
+													/>
+													<Label
+														htmlFor={answer.uuid}
+														className="flex-1 cursor-pointer"
+													>
+														{answer.content}
+													</Label>
+												</div>
+											))}
+										</RadioGroup>
+									) : (
+										// Multiple choice - use Checkbox
+										question.answers.map(answer => {
+											const isSelected =
+												selectedAnswers[question.uuid]?.includes(answer.uuid) ||
+												false
+											return (
+												<div
+													key={answer.uuid}
+													className={`flex items-start gap-3 rounded-md border p-3 transition-colors ${
+														submitted
+															? 'opacity-60 cursor-not-allowed'
+															: 'hover:bg-accent cursor-pointer'
+													}`}
+													onClick={() => {
+														if (!submitted) {
+															handleAnswerChange(
+																question.uuid,
+																answer.uuid,
+																!isSelected,
+																false
+															)
+														}
+													}}
+												>
+													<Checkbox
+														checked={isSelected}
+														onCheckedChange={checked =>
+															!submitted &&
+															handleAnswerChange(
+																question.uuid,
+																answer.uuid,
+																!!checked,
+																false
+															)
+														}
+														disabled={submitted}
+														className="mt-1"
+													/>
+													<label className="flex-1 cursor-pointer">
+														{answer.content}
+													</label>
+												</div>
+											)
+										})
 									)
-								})
-							) : (
-								<p className="text-sm text-muted-foreground">
-									No answers available
-								</p>
-							)}
-						</CardContent>
-					</Card>
-				))}
+								) : (
+									<p className="text-sm text-muted-foreground">
+										No answers available
+									</p>
+								)}
+							</CardContent>
+						</Card>
+					)
+				})}
 			</div>
 
 			{/* Submit Section */}
@@ -242,9 +359,7 @@ export default function TakeQuizPage() {
 								{!allQuestionsAnswered && (
 									<div className="flex items-center gap-2 text-sm text-muted-foreground">
 										<AlertCircle className="h-4 w-4" />
-										<span>
-											Please answer all questions before submitting
-										</span>
+										<span>Please answer all questions before submitting</span>
 									</div>
 								)}
 								{allQuestionsAnswered && (
@@ -278,4 +393,3 @@ export default function TakeQuizPage() {
 		</div>
 	)
 }
-
