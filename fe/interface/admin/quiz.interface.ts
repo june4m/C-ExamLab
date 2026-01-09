@@ -48,9 +48,11 @@ export interface QuestionWithUuid {
 }
 
 // Answer in response does NOT include isCorrect (for security)
+// But admin API returns isCorrect
 export interface AnswerWithUuid {
 	uuid: string
 	content: string
+	isCorrect?: number | boolean // Admin API returns this
 }
 
 export interface QuizSubmissionResponse {
@@ -62,3 +64,40 @@ export interface QuizSubmissionResponse {
 	submittedAt: string
 }
 
+// Import Quiz Questions
+export interface ImportQuizQuestionsBody {
+	quizUuid?: string // Add to existing quiz
+	title?: string // Create new quiz with this title
+	description?: string
+	questions: Question[]
+}
+
+export interface ImportQuizQuestionsResponse {
+	quizUuid: string
+	imported: number
+	skipped: number
+	errors: { index: number; reason: string }[]
+}
+
+// Add Question to Quiz
+export interface AddQuestionBody {
+	content: string
+	points?: number
+	type?: string
+	answers: Answer[]
+}
+
+export interface AddQuestionResponse {
+	questionUuid: string
+}
+
+// Copy Questions from Another Quiz
+export interface CopyQuestionsBody {
+	sourceQuizUuid: string
+	questionUuids?: string[] // If empty, copy all questions
+}
+
+export interface CopyQuestionsResponse {
+	copied: number
+	skipped: number
+}

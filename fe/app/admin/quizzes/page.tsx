@@ -5,8 +5,13 @@ import Link from 'next/link'
 import { Plus, Loader2, Search, X, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle
+} from '@/components/ui/card'
 import { useGetQuizzes } from '@/service/admin/quiz.service'
 
 export default function AdminQuizzesPage() {
@@ -16,7 +21,10 @@ export default function AdminQuizzesPage() {
 	// Filter quizzes based on search query
 	const filteredQuizzes = quizzes
 		?.slice()
-		.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+		.sort(
+			(a, b) =>
+				new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+		)
 		.filter(quiz => {
 			if (!searchQuery.trim()) return true
 			const query = searchQuery.toLowerCase()
@@ -33,12 +41,20 @@ export default function AdminQuizzesPage() {
 				<h1 className="text-2xl font-bold">
 					Quizzes | {filteredQuizzes?.length || 0}
 				</h1>
-				<Link href="/admin/quizzes/new">
-					<Button className="bg-[#40E0D0] hover:bg-[#40E0D0]/90 text-white shadow-sm">
-						<Plus className="h-4 w-4 mr-2" />
-						Create New Quiz
-					</Button>
-				</Link>
+				<div className="flex gap-2">
+					<Link href="/admin/quizzes/add-questions">
+						<Button variant="outline">
+							<Plus className="h-4 w-4 mr-2" />
+							Thêm câu hỏi
+						</Button>
+					</Link>
+					<Link href="/admin/quizzes/new">
+						<Button className="bg-[#40E0D0] hover:bg-[#40E0D0]/90 text-white shadow-sm">
+							<Plus className="h-4 w-4 mr-2" />
+							Tạo Quiz mới
+						</Button>
+					</Link>
+				</div>
 			</div>
 
 			{/* Search Bar */}
@@ -114,63 +130,47 @@ export default function AdminQuizzesPage() {
 				)}
 
 			{/* Quizzes Grid */}
-			{!isLoading && !error && filteredQuizzes && filteredQuizzes.length > 0 && (
-				<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-					{filteredQuizzes.map(quiz => (
-						<Card key={quiz.uuid} className="hover:shadow-md transition-shadow">
-							<CardHeader>
-								<div className="flex items-start justify-between">
-									<CardTitle className="text-lg line-clamp-2">{quiz.title}</CardTitle>
-									<Badge variant={quiz.isActive ? 'default' : 'secondary'}>
-										{quiz.isActive ? 'Active' : 'Inactive'}
-									</Badge>
-								</div>
-								{quiz.description && (
-									<CardDescription className="line-clamp-2 mt-2">
-										{quiz.description}
-									</CardDescription>
-								)}
-							</CardHeader>
-							<CardContent>
-								<div className="flex items-center justify-between text-sm text-muted-foreground mb-4">
-									<span>
-										Created:{' '}
-										{new Date(quiz.createdAt).toLocaleDateString('en-US', {
-											year: 'numeric',
-											month: 'short',
-											day: 'numeric'
-										})}
-									</span>
-								</div>
-								<div className="flex flex-col gap-2">
-  <Link href={`/admin/quizzes/${quiz.uuid}/submissions`}>
-    <Button variant="outline" className="w-full">
-      View Submissions
-    </Button>
-  </Link>
-  <div className="flex gap-2">
-    <Link href={`/admin/quizzes/${quiz.uuid}/edit`}>
-      <Button variant="secondary" className="flex-1">Edit</Button>
-    </Link>
-    <Button
-      variant="destructive"
-      className="flex-1"
-      onClick={() => {
-        if(window.confirm('Are you sure you want to delete this quiz?')) {
-          alert('Delete quiz API not implemented yet!');
-        }
-      }}
-    >
-      Delete
-    </Button>
-  </div>
-</div>
-							</CardContent>
-						</Card>
-					))}
-				</div>
-			)}
+			{!isLoading &&
+				!error &&
+				filteredQuizzes &&
+				filteredQuizzes.length > 0 && (
+					<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+						{filteredQuizzes.map(quiz => (
+							<Card
+								key={quiz.uuid}
+								className="hover:shadow-md transition-shadow"
+							>
+								<CardHeader>
+									<CardTitle className="text-lg line-clamp-2">
+										{quiz.title}
+									</CardTitle>
+									{quiz.description && (
+										<CardDescription className="line-clamp-2 mt-2">
+											{quiz.description}
+										</CardDescription>
+									)}
+								</CardHeader>
+								<CardContent>
+									<div className="flex items-center justify-between text-sm text-muted-foreground mb-4">
+										<span>
+											Ngày tạo:{' '}
+											{new Date(quiz.createdAt).toLocaleDateString('vi-VN', {
+												year: 'numeric',
+												month: 'short',
+												day: 'numeric'
+											})}
+										</span>
+									</div>
+									<Link href={`/admin/quizzes/${quiz.uuid}`}>
+										<Button variant="outline" className="w-full">
+											Xem chi tiết
+										</Button>
+									</Link>
+								</CardContent>
+							</Card>
+						))}
+					</div>
+				)}
 		</div>
 	)
 }
-

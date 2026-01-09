@@ -1,9 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useMemo } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { ArrowLeft } from 'lucide-react'
-import { useGetQuiz } from '@/service/admin/quiz.service'
+import { ArrowLeft, Plus, Copy, Loader2 } from 'lucide-react'
+import {
+	useGetQuiz,
+	useGetQuizzes,
+	useCopyQuestionsFromQuiz
+} from '@/service/admin/quiz.service'
 import { Button } from '@/components/ui/button'
 import {
 	Card,
@@ -12,98 +16,76 @@ import {
 	CardTitle,
 	CardDescription
 } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+	DialogFooter
+} from '@/components/ui/dialog'
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue
+} from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 import Link from 'next/link'
-import type { QuestionWithUuid, AnswerWithUuid } from '@/interface/admin/quiz.interface'
+import { useState } from 'react'
 
 export default function EditQuizPage() {
 	const router = useRouter()
 	const params = useParams()
 	const quizId = params.id as string
 
-	const { data: quiz, isLoading, error } = useGetQuiz(quizId)
+	const { data: quiz, isLoading, error, refetch } = useGetQuiz(quizId)
+	const { data: allQuizzes } = useGetQuizzes()
+	const { mutate: copyQuestions, isPending: isCopyingQuestions } =
+		useCopyQuestionsFromQuiz()
 
-	// Form state
-	const [title, setTitle] = useState('')
-	const [description, setDescription] = useState('')
-	type QuestionWithAnswers = QuestionWithUuid & {
-		answers: Array<AnswerWithUuid & { isCorrect?: boolean }>
-	}
-	const [questions, setQuestions] = useState<QuestionWithAnswers[]>([])
+	// Dialog states
+	const [showCopyQuestionsDialog, setShowCopyQuestionsDialog] = useState(false)
+	const [sourceQuizUuid, setSourceQuizUuid] = useState('')
 
-	useEffect(() => {
-		if (quiz) {
-			setTitle(quiz.title || '')
-			setDescription(quiz.description ?? '')
-			// Load questions and answers
-			if (quiz.questions) {
-				// Note: Backend doesn't return isCorrect, so we'll show answers but can't edit correctness
-				setQuestions(
-					quiz.questions.map(q => ({
-						...q,
-						answers: q.answers.map(a => ({
-							...a,
-							isCorrect: undefined // Backend doesn't return this
-						}))
-					}))
-				)
+	// Derived state from quiz data
+	const title = quiz?.title || ''
+	const description = quiz?.description || ''
+	const questions = useMemo(() => quiz?.questions || [], [quiz?.questions])
+
+	const handleCopyQuestions = () => {
+		if (!sourceQuizUuid) {
+			toast.error('Please select a source quiz')
+			return
+		}
+
+		copyQuestions(
+			{
+				targetQuizId: quizId,
+				payload: {
+					sourceQuizUuid,
+					questionUuids: undefined
+				}
+			},
+			{
+				onSuccess: data => {
+					toast.success(`Copied ${data.copied} question(s) successfully`)
+					setShowCopyQuestionsDialog(false)
+					setSourceQuizUuid('')
+					refetch()
+				},
+				onError: (err: Error) => {
+					toast.error(err.message || 'Failed to copy questions')
+				}
 			}
-		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [quiz])
-
-	const updateQuestion = (
-		index: number,
-		field: keyof QuestionWithUuid,
-		value: string | number
-	) => {
-		const updated = [...questions]
-		updated[index] = { ...updated[index], [field]: value }
-		setQuestions(updated)
-	}
-
-	const updateAnswer = (
-		questionIndex: number,
-		answerIndex: number,
-		field: 'content' | 'isCorrect',
-		value: string | boolean
-	) => {
-		const updated = [...questions]
-		updated[questionIndex].answers[answerIndex] = {
-			...updated[questionIndex].answers[answerIndex],
-			[field]: value
-		}
-		setQuestions(updated)
-	}
-
-	const handleSubmit = (e: React.FormEvent) => {
-		e.preventDefault()
-		alert(
-			'Update quiz API not implemented yet!\n\n' +
-				JSON.stringify(
-					{
-						title,
-						description,
-						questions: questions.map(q => ({
-							uuid: q.uuid,
-							content: q.content,
-							points: q.points,
-							answers: q.answers.map(a => ({
-								uuid: a.uuid,
-								content: a.content
-							}))
-						}))
-					},
-					null,
-					2
-				)
 		)
-		// TODO: Call updateQuiz API when available
 	}
+
+	// Filter out current quiz from source options
+	const availableSourceQuizzes =
+		allQuizzes?.filter(q => q.uuid !== quizId) || []
 
 	if (isLoading) {
 		return (
@@ -136,174 +118,183 @@ export default function EditQuizPage() {
 			{/* Header */}
 			<div className="mb-6">
 				<Link
-					href="/admin/quizzes"
+					href={`/admin/quizzes/${quizId}`}
 					className="mb-4 inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
 				>
 					<ArrowLeft className="mr-2 h-4 w-4" />
-					Back to quizzes list
+					Back to quiz detail
 				</Link>
-				<h1 className="text-2xl font-bold">Edit Quiz</h1>
-				<p className="text-muted-foreground mt-2">
-					Update quiz information, questions and answers
-				</p>
+				<h1 className="text-2xl font-bold">{title}</h1>
+				{description && (
+					<p className="text-muted-foreground mt-2">{description}</p>
+				)}
 			</div>
 
-			<form onSubmit={handleSubmit} className="space-y-6">
-				{/* Quiz Info */}
-				<Card>
-					<CardHeader>
-						<CardTitle>Quiz Information</CardTitle>
-						<CardDescription>
-							Edit the title and description of the quiz
-						</CardDescription>
-					</CardHeader>
-					<CardContent className="space-y-4">
-						{/* Title */}
-						<div className="space-y-2">
-							<Label htmlFor="title">Title *</Label>
-							<Input
-								id="title"
-								placeholder="Enter quiz title"
-								value={title}
-								onChange={e => setTitle(e.target.value)}
-								required
-							/>
+			{/* Questions */}
+			<Card>
+				<CardHeader>
+					<div className="flex items-center justify-between">
+						<div>
+							<CardTitle>Questions ({questions.length})</CardTitle>
+							<CardDescription>Manage questions in this quiz</CardDescription>
 						</div>
-
-						{/* Description */}
-						<div className="space-y-2">
-							<Label htmlFor="description">Description</Label>
-							<Textarea
-								id="description"
-								placeholder="Enter quiz description (optional)"
-								value={description}
-								onChange={e => setDescription(e.target.value)}
-								rows={4}
-							/>
+						<div className="flex gap-2">
+							<Button
+								type="button"
+								variant="outline"
+								onClick={() => setShowCopyQuestionsDialog(true)}
+							>
+								<Copy className="h-4 w-4 mr-2" />
+								Copy from Quiz
+							</Button>
+							<Link href={`/admin/quizzes/add-questions?quizId=${quizId}`}>
+								<Button variant="outline">
+									<Plus className="h-4 w-4 mr-2" />
+									Add Questions
+								</Button>
+							</Link>
 						</div>
-					</CardContent>
-				</Card>
-
-				{/* Questions */}
-				<Card>
-					<CardHeader>
-						<CardTitle>Questions ({questions.length})</CardTitle>
-						<CardDescription>
-							View and edit questions and their answers
-						</CardDescription>
-					</CardHeader>
-					<CardContent className="space-y-6">
-						{questions.map((question, qIndex) => (
-							<Card key={question.uuid} className="border-2">
-								<CardHeader>
-									<CardTitle className="text-lg">
-										Question {qIndex + 1}
+					</div>
+				</CardHeader>
+				<CardContent className="space-y-4">
+					{questions.length > 0 ? (
+						questions.map((question, qIndex) => (
+							<Card key={question.uuid} className="border">
+								<CardHeader className="pb-2">
+									<CardTitle className="text-base">
+										Q{qIndex + 1}: {question.content}
 									</CardTitle>
 								</CardHeader>
-								<CardContent className="space-y-4">
-									{/* Question Content */}
+								<CardContent>
 									<div className="space-y-2">
-										<Label>Question Content *</Label>
-										<Textarea
-											placeholder="Enter question content"
-											value={question.content}
-											onChange={e =>
-												updateQuestion(qIndex, 'content', e.target.value)
-											}
-											required
-											rows={3}
-										/>
-									</div>
-
-									{/* Points */}
-									<div className="space-y-2">
-										<Label>Points</Label>
-										<Input
-											type="number"
-											min="0"
-											step="0.1"
-											value={question.points}
-											onChange={e =>
-												updateQuestion(
-													qIndex,
-													'points',
-													parseFloat(e.target.value) || 0
-												)
-											}
-										/>
-									</div>
-
-									{/* Answers */}
-									<div className="space-y-2">
-										<Label>Answers *</Label>
-										{question.answers.map((answer, aIndex) => (
-											<div
-												key={answer.uuid}
-												className="flex items-start gap-3 rounded-md border p-3"
-											>
-												<div className="flex items-center gap-2 mt-1">
-													<Checkbox
-														checked={(answer as AnswerWithUuid & { isCorrect?: boolean }).isCorrect || false}
-														disabled={(answer as AnswerWithUuid & { isCorrect?: boolean }).isCorrect === undefined}
-														className="mt-1"
-													/>
-													{(answer as AnswerWithUuid & { isCorrect?: boolean }).isCorrect !== undefined && (
-														<label className="text-sm text-muted-foreground cursor-pointer whitespace-nowrap">
-															Correct
-														</label>
-													)}
-													{(answer as AnswerWithUuid & { isCorrect?: boolean }).isCorrect === undefined && (
-														<span className="text-xs text-muted-foreground italic">
-															(Correct answer info not available)
+										{question.answers.map((answer, aIndex) => {
+											const isCorrect = Boolean(answer.isCorrect)
+											return (
+												<div
+													key={answer.uuid}
+													className={`flex items-center gap-2 text-sm p-2 rounded-md ${
+														isCorrect
+															? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 border border-green-300 dark:border-green-700'
+															: 'bg-muted/50'
+													}`}
+												>
+													<span
+														className={`font-medium ${
+															isCorrect
+																? 'text-green-700 dark:text-green-400'
+																: 'text-muted-foreground'
+														}`}
+													>
+														{String.fromCharCode(65 + aIndex)}.
+													</span>
+													<span className="flex-1">{answer.content}</span>
+													{isCorrect && (
+														<span className="text-xs text-green-600 dark:text-green-400 font-medium">
+															✓ Correct
 														</span>
 													)}
 												</div>
-												<Input
-													placeholder="Enter answer content"
-													value={answer.content}
-													onChange={e =>
-														updateAnswer(
-															qIndex,
-															aIndex,
-															'content',
-															e.target.value
-														)
-													}
-													className="flex-1"
-												/>
-											</div>
-										))}
+											)
+										})}
 									</div>
 								</CardContent>
 							</Card>
-						))}
-
-						{questions.length === 0 && (
-							<div className="rounded-md border border-dashed p-8 text-center">
-								<p className="text-muted-foreground">
-									No questions in this quiz
-								</p>
+						))
+					) : (
+						<div className="rounded-md border border-dashed p-8 text-center">
+							<p className="text-muted-foreground mb-4">
+								No questions in this quiz
+							</p>
+							<div className="flex justify-center gap-2">
+								<Button
+									type="button"
+									variant="outline"
+									onClick={() => setShowCopyQuestionsDialog(true)}
+								>
+									<Copy className="h-4 w-4 mr-2" />
+									Copy from Quiz
+								</Button>
+								<Link href={`/admin/quizzes/add-questions?quizId=${quizId}`}>
+									<Button variant="outline">
+										<Plus className="h-4 w-4 mr-2" />
+										Add Questions
+									</Button>
+								</Link>
 							</div>
-						)}
-					</CardContent>
-				</Card>
+						</div>
+					)}
+				</CardContent>
+			</Card>
 
-				{/* Submit Buttons */}
-				<div className="flex gap-4">
-					<Button
-						type="button"
-						variant="outline"
-						className="flex-1"
-						onClick={() => router.back()}
-					>
-						Cancel
-					</Button>
-					<Button type="submit" className="flex-1">
-						Save Changes
-					</Button>
-				</div>
-			</form>
+			{/* Back Button */}
+			<div className="mt-6">
+				<Button
+					variant="outline"
+					onClick={() => router.push(`/admin/quizzes/${quizId}`)}
+				>
+					<ArrowLeft className="h-4 w-4 mr-2" />
+					Back to Quiz
+				</Button>
+			</div>
+
+			{/* Copy Questions Dialog */}
+			<Dialog
+				open={showCopyQuestionsDialog}
+				onOpenChange={setShowCopyQuestionsDialog}
+			>
+				<DialogContent className="max-w-md">
+					<DialogHeader>
+						<DialogTitle>Copy Questions</DialogTitle>
+						<DialogDescription>
+							Copy all questions from another quiz
+						</DialogDescription>
+					</DialogHeader>
+					<div className="space-y-4 py-4">
+						<div className="space-y-2">
+							<Label>Source Quiz *</Label>
+							<Select value={sourceQuizUuid} onValueChange={setSourceQuizUuid}>
+								<SelectTrigger>
+									<SelectValue placeholder="Select a quiz" />
+								</SelectTrigger>
+								<SelectContent>
+									{availableSourceQuizzes.map(q => (
+										<SelectItem key={q.uuid} value={q.uuid}>
+											{q.title}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
+					</div>
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={() => {
+								setShowCopyQuestionsDialog(false)
+								setSourceQuizUuid('')
+							}}
+						>
+							Cancel
+						</Button>
+						<Button
+							onClick={handleCopyQuestions}
+							disabled={isCopyingQuestions || !sourceQuizUuid}
+						>
+							{isCopyingQuestions ? (
+								<>
+									<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+									Copying...
+								</>
+							) : (
+								<>
+									<Copy className="h-4 w-4 mr-2" />
+									Copy All
+								</>
+							)}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</div>
 	)
 }
-
