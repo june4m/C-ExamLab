@@ -13,13 +13,13 @@ export const axiosGeneral = axios.create({
 // Request interceptor - dynamically import auth store to avoid circular dependency
 axiosGeneral.interceptors.request.use(
 	async config => {
-		if (typeof window !== 'undefined') {
-			const { useAuthStore } = await import('@/store/auth.store')
-			// const token = useAuthStore.getState().token
-			// if (token) {
-			// 	config.headers.Authorization = `Bearer ${token}`
-			// }
-		}
+		// if (typeof window !== 'undefined') {
+		// 	const { useAuthStore } = await import('@/store/auth.store')
+		// 	const token = useAuthStore.getState().token
+		// 	if (token) {
+		// 		config.headers.Authorization = `Bearer ${token}`
+		// 	}
+		// }
 		return config
 	},
 	error => {
