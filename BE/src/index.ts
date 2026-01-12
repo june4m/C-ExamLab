@@ -20,7 +20,7 @@ startRoomReminderJob()
 const app = new Elysia()
 	.use(
 		cors({
-			origin: 'http://localhost:3000',
+			origin: ['http://localhost:3000', 'https://c-examlab.vercel.app'],
 			credentials: true,
 			methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
 			allowedHeaders: ['Content-Type', 'Authorization']

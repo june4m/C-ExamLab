@@ -6,7 +6,8 @@ export const axiosGeneral = axios.create({
 	baseURL: API_BASE_URL,
 	headers: {
 		'Content-Type': 'application/json'
-	}
+	},
+	withCredentials: true
 })
 
 // Request interceptor - dynamically import auth store to avoid circular dependency
