@@ -15,10 +15,10 @@ axiosGeneral.interceptors.request.use(
 	async config => {
 		if (typeof window !== 'undefined') {
 			const { useAuthStore } = await import('@/store/auth.store')
-			const token = useAuthStore.getState().token
-			if (token) {
-				config.headers.Authorization = `Bearer ${token}`
-			}
+			// const token = useAuthStore.getState().token
+			// if (token) {
+			// 	config.headers.Authorization = `Bearer ${token}`
+			// }
 		}
 		return config
 	},
